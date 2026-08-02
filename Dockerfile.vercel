@@ -15,10 +15,12 @@ COPY --from=build /app/target/*.jar app.jar
 # Perfil de produção (PostgreSQL/Supabase). Pode ser sobrescrito via env na Vercel.
 ENV SPRING_PROFILES_ACTIVE=prod
 
-# Heap limitado e previsível: evita que a JVM reivindique memória demais do
-# container (Vercel) e seja morta por OOM no cold-start. Heap é commitado
-# lazy; 512m é folgado para este app e sobra RAM para metaspace/threads.
-ENV JAVA_TOOL_OPTIONS="-Xmx512m"
+# Heap limitado e previsível: o Fluid Compute da Vercel por padrão dá ~512MB ao
+# container. Heap + metaspace + code cache + threads NÃO podem estourar isso, ou o
+# kernel mata o processo no cold-start (INTERNAL_FUNCTION_INVOCATION_FAILED).
+# SerialGC: pouquíssima memória overhead e boot mais rápido para heap pequeno.
+# TieredStopAtLevel=1 (apenas C1): JIT compila bem mais rápido no cold-start.
+ENV JAVA_TOOL_OPTIONS="-Xmx384m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k"
 
 # Vercel injeta a variável PORT em tempo de execução
 EXPOSE 8080

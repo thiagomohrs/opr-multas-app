@@ -12,7 +12,8 @@ import com.opr.multas.service.ModeracaoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +28,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DataInitializer implements CommandLineRunner {
+public class DataInitializer {
 
     private final UsuarioRepository usuarioRepository;
     private final MultaRepository multaRepository;
@@ -49,8 +50,26 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${opr.seed.revisor-senha:revisor123}")
     private String revisorSenha;
 
-    @Override
-    public void run(String... args) {
+    /**
+     * Roda APÓS o boot (ApplicationReadyEvent), em thread própria e tolerante a
+     * falhas: o cold-start da Vercel não pode esperar o seed (BCrypt, inserts,
+     * geração de imagem). Se o banco estiver indisponível ou o schema ausente,
+     * o problema é logado e o container continua de pé.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        Thread seed = new Thread(() -> {
+            try {
+                run();
+            } catch (Exception ex) {
+                log.error("Seed de demonstração falhou (boot não bloqueado): {}", ex.getMessage(), ex);
+            }
+        }, "opr-seed");
+        seed.setDaemon(true);
+        seed.start();
+    }
+
+    public void run() {
         if (!seedDemoData) {
             log.info("Seed de dados de demonstração desabilitado (opr.seed-demo-data=false).");
             return;

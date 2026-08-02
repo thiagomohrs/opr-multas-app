@@ -141,7 +141,7 @@ $env:DATABASE_USER = "seu_usuario"       # opcional se a URL já tiver credencia
 $env:DATABASE_PASSWORD = "sua_senha"     # opcional se a URL já tiver credenciais
 ```
 
-O seed de demonstração roda por padrão também em `prod` (para o primeiro acesso criar `admin`). Para desativar: `OPR_SEED_DEMO_DATA=false`. As senhas do seed vêm de env vars (`OPR_SEED_ADMIN_SENHA`, `OPR_SEED_USER_SENHA`, `OPR_SEED_REVISOR_SENHA`) — nunca hardcode em produção.
+O seed de demonstração roda por padrão também em `prod` (para o primeiro acesso criar `admin`). Ele executa **após** o boot (`ApplicationReadyEvent`), em thread própria e com tolerância a falhas — se o banco estiver indisponível, o container continua no ar e o problema é apenas logado. Para desativar: `OPR_SEED_DEMO_DATA=false`. As senhas do seed vêm de env vars (`OPR_SEED_ADMIN_SENHA`, `OPR_SEED_USER_SENHA`, `OPR_SEED_REVISOR_SENHA`) — nunca hardcode em produção.
 
 ## 🚀 Deploy na Vercel
 
@@ -178,8 +178,11 @@ Configure no dashboard (Project Settings → Environment Variables) ou via `verc
 | `OPR_SEED_USER_SENHA` | Não | Senha do usuário `user` criado pelo seed (default `user123`) |
 | `OPR_SEED_REVISOR_SENHA` | Não | Senha dos revisores `revisor`, `revisor2`, `revisor3` (default `revisor123`) |
 | `OPR_SEED_DEMO_DATA` | Não | `false` para desativar o seed de demonstração em produção |
+| `OPR_DDL_AUTO` | Primeiro deploy | `update` para o app criar o schema no banco (ver abaixo) |
 
 \* Sem as credenciais Google, o login por formulário continua funcionando.
+
+> **Primeiro deploy — criar o schema:** em `prod` o `ddl-auto` é `none` por padrão (para manter o cold-start abaixo do limite da Vercel). No **primeiro** deploy, defina `OPR_DDL_AUTO=update` na Vercel, faça o deploy e, depois que o schema existir, **remova essa variável** (ou volte para `none`). Sem esse passo, o seed roda em background mas falha com `Table "USUARIOS" not found` — a app sobe (health UP), mas o login/rotas falham.
 
 > **Importante:** ao usar Google OAuth2, adicione `https://<seu-projeto>.vercel.app/login/oauth2/code/google` como URI de redirecionamento no Google Cloud Console.
 
@@ -192,7 +195,7 @@ Configure no dashboard (Project Settings → Environment Variables) ou via `verc
 
 - **Dados:** o H2 em memória reseta a cada deploy/reinício. Use o perfil `prod` com PostgreSQL para persistir.
 - **Sessões:** as sessões são em memória; em escala, autentique novamente se houver múltiplas instâncias.
-- **Cold start:** containers Java podem demorar alguns segundos para responder após inatividade.
+- **Cold start:** a JVM foi otimizada para o limite da Vercel (heap 384m, SerialGC, C1-only, seed pós-boot assíncrono, pool de conexões lazy com timeout curto). Mesmo assim, o primeiro acesso após inatividade pode demorar alguns segundos — se retornar `INTERNAL_FUNCTION_INVOCATION_FAILED`/`500` no primeiro hit, aguarde o container esquentar e tente novamente.
 
 ## 📁 Estrutura do Projeto
 
