@@ -23,7 +23,12 @@ ENV JAVA_TOOL_OPTIONS="-Xmx512m"
 # Vercel injeta a variável PORT em tempo de execução
 EXPOSE 8080
 
+# Vercel (Fluid Compute) não herda o ENV PATH da imagem ao invocar o processo.
+# Declaramos o PATH explicitamente e usamos o caminho absoluto do java no CMD.
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 
-CMD ["sh", "-c", "exec java -jar app.jar"]
+CMD ["sh", "-c", "exec ${JAVA_HOME}/bin/java -jar app.jar"]

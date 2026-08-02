@@ -46,3 +46,6 @@ backend/src/main/resources/application-local.properties
 backend/*.db
 backend/*.mv.db
 backend/*.trace.db
+
+.vercel
+.env*
