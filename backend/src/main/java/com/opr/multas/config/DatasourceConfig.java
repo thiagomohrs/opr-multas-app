@@ -34,6 +34,20 @@ public class DatasourceConfig {
     @Value("${spring.datasource.hikari.initialization-fail-timeout:1}")
     private long initializationFailTimeout;
 
+    // Como o DataSource é criado programaticamente (não pela auto-config do
+    // Spring Boot), as propriedades spring.datasource.hikari.* NÃO são aplicadas
+    // automaticamente ao bean. Sem isso o Hikari usa os defaults (connectionTimeout
+    // 30s, maximumPoolSize 10), o que esgota o pooler do Supabase (session mode,
+    // pool_size 15) quando vários containers frios da Vercel sobem juntos.
+    @Value("${spring.datasource.hikari.connection-timeout:4000}")
+    private long connectionTimeout;
+    @Value("${spring.datasource.hikari.validation-timeout:3000}")
+    private long validationTimeout;
+    @Value("${spring.datasource.hikari.maximum-pool-size:5}")
+    private int maximumPoolSize;
+    @Value("${spring.datasource.hikari.minimum-idle:0}")
+    private int minimumIdle;
+
     // Envs da integração Vercel x Supabase. Usadas quando DATABASE_URL está ausente
     // ou malformada (ex.: apenas o host, sem esquema jdbc:postgresql://).
     @Value("${POSTGRES_URL:}")
@@ -101,6 +115,10 @@ public class DatasourceConfig {
             ds.setPassword(password);
         }
         ds.setInitializationFailTimeout(initializationFailTimeout);
+        ds.setConnectionTimeout(connectionTimeout);
+        ds.setValidationTimeout(validationTimeout);
+        ds.setMaximumPoolSize(maximumPoolSize);
+        ds.setMinimumIdle(minimumIdle);
         return ds;
     }
 
@@ -126,13 +144,16 @@ public class DatasourceConfig {
     }
 
     /**
-     * Prefere a URL NÃO-pooling (porta 5432, conexão direta ao Supabase): suporta
-     * prepared statements nativamente e não depende do PgBouncer/Supavisor.
-     * O pooler (porta 6543, transaction-mode) não suporta prepared statements do
-     * driver JDBC — se for usado, o DatasourceConfig adiciona prepareThreshold=0.
+     * Prefere a URL do pooler em MODO TRANSAÇÃO (porta 6543, Supavisor): ele
+     * multiplexa clientes por conexão de servidor, então vários containers frios
+     * da Vercel não estouram o limite. O modo SESSION (pooler.supabase.com:5432,
+     * usada em POSTGRES_URL_NON_POOLING) segura 1 slot por conexão Hikari e capa
+     * na pool_size:15 -> FATAL (EMAXCONNSESSION) com múltiplas instâncias.
+     * O JDBC já roda com prepareThreshold=0 (garantido em garantirPreparedStatementsOff),
+     * que é o que o pooler de transação exige.
      */
     private String primeiraUrlSupabaseValida() {
-        for (String candidata : new String[] {postgresUrlNonPooling, postgresUrl, postgresPrismaUrl}) {
+        for (String candidata : new String[] {postgresUrl, postgresUrlNonPooling, postgresPrismaUrl}) {
             if (StringUtils.hasText(candidata) && isUrlPostgresValida(candidata)) {
                 return candidata;
             }
