@@ -15,6 +15,9 @@ COPY --from=build /app/target/*.jar app.jar
 # Perfil de produção (PostgreSQL/Supabase). Pode ser sobrescrito via env na Vercel.
 ENV SPRING_PROFILES_ACTIVE=prod
 
+# Limita o heap ao limite do container (Vercel) evitando OOM em cold-start
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
+
 # Vercel injeta a variável PORT em tempo de execução
 EXPOSE 8080
 

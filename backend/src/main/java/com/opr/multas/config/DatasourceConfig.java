@@ -1,6 +1,8 @@
 package com.opr.multas.config;
 
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +15,8 @@ import java.util.regex.Pattern;
 
 @Configuration
 public class DatasourceConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(DatasourceConfig.class);
 
     /**
      * Aceita URLs no formato nativo do Supabase (ex.: postgresql://user:pass@host:5432/db)
@@ -42,6 +46,9 @@ public class DatasourceConfig {
                 password = info.password;
             }
         }
+
+        log.info("DataSource configurada (JDBC): {} (usuario: {})", url,
+            StringUtils.hasText(username) ? username : "(via URL)");
 
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl(url);
