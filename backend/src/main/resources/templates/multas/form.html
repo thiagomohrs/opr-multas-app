@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${isEdit ? 'Editar Multa' : 'Nova Multa'} + ' | OPR Multas'">Formulário | OPR Multas</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('multas')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="card">
+        <div class="card-header">
+            <h1 th:text="${isEdit ? '✏️ Editar Multa' : '➕ Nova Multa'}">Formulário</h1>
+            <a th:href="@{/multas}" class="btn btn-outline">← Voltar</a>
+        </div>
+
+        <div class="card-body">
+            <!-- Erros de anexo/validação extra -->
+            <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+            <form th:action="${isEdit ? '/multas/' + multa.id : '/multas'}"
+                  th:object="${multa}"
+                  method="post"
+                  enctype="multipart/form-data"
+                  id="multa-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                <!-- Erros globais de binding -->
+                <div class="alert alert-danger" th:if="${#fields.hasGlobalErrors()}">
+                    <ul style="margin:0; padding-left:1rem">
+                        <li th:each="err : ${#fields.globalErrors()}" th:text="${err}">Erro</li>
+                    </ul>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="placa">Placa *</label>
+                        <input id="placa"
+                               th:field="*{placa}"
+                               type="text"
+                               class="form-control"
+                               th:classappend="${#fields.hasErrors('placa')} ? 'is-invalid'"
+                               placeholder="Ex: ABC1234"
+                               style="text-transform:uppercase"
+                               required/>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('placa')}"
+                             th:errors="*{placa}">Erro placa</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo">Tipo *</label>
+                        <input id="tipo"
+                               th:field="*{tipo}"
+                               type="text"
+                               class="form-control"
+                               th:classappend="${#fields.hasErrors('tipo')} ? 'is-invalid'"
+                               placeholder="Ex: Velocidade, Semáforo..."
+                               required/>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('tipo')}"
+                             th:errors="*{tipo}">Erro tipo</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="descricao">Descrição *</label>
+                    <input id="descricao"
+                           th:field="*{descricao}"
+                           type="text"
+                           class="form-control"
+                           th:classappend="${#fields.hasErrors('descricao')} ? 'is-invalid'"
+                           placeholder="Descreva a infração..."
+                           required/>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('descricao')}"
+                         th:errors="*{descricao}">Erro descrição</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="valor">Valor (R$) *</label>
+                        <input id="valor"
+                               th:field="*{valor}"
+                               type="number"
+                               step="0.01"
+                               min="0"
+                               class="form-control"
+                               th:classappend="${#fields.hasErrors('valor')} ? 'is-invalid'"
+                               placeholder="0.00"
+                               required/>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('valor')}"
+                             th:errors="*{valor}">Erro valor</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status"
+                                th:field="*{status}"
+                                class="form-control">
+                            <option th:each="s : ${statusValues}"
+                                    th:value="${s}"
+                                    th:text="${s}">STATUS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dataInfracao">Data da Infração *</label>
+                        <input id="dataInfracao"
+                               th:field="*{dataInfracao}"
+                               type="datetime-local"
+                               class="form-control"
+                               th:classappend="${#fields.hasErrors('dataInfracao')} ? 'is-invalid'"
+                               required/>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('dataInfracao')}"
+                             th:errors="*{dataInfracao}">Erro data</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dataVencimento">Data de Vencimento</label>
+                        <input id="dataVencimento"
+                               th:field="*{dataVencimento}"
+                               type="datetime-local"
+                               class="form-control"/>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="anexos">Anexos (apenas imagens e vídeos, máx. 10 MB cada)</label>
+                    <input id="anexos"
+                           name="anexos"
+                           type="file"
+                           class="form-control"
+                           accept="image/*,video/*"
+                           multiple/>
+                    <div class="text-muted" style="font-size:.78rem; margin-top:.35rem">
+                        Formatos aceitos: JPG, PNG, GIF, WEBP, SVG, BMP · MP4, WEBM, MOV, MKV, AVI.
+                    </div>
+                </div>
+
+                <div class="card-body-divider" th:if="${isEdit}">
+                    <h3>📎 Anexos existentes</h3>
+                    <div class="empty-state" th:if="${multa.anexos.isEmpty()}">
+                        <p>Nenhum anexo neste caso.</p>
+                    </div>
+                    <ul class="anexo-list" th:unless="${multa.anexos.isEmpty()}">
+                        <li th:each="anexo : ${multa.anexos}">
+                            <a th:href="@{/multas/{id}/anexos/{anexoId}(id=${multa.id}, anexoId=${anexo.id})}"
+                               target="_blank"
+                               th:text="${anexo.nomeOriginal}">arquivo.png</a>
+                            <span class="text-muted"
+                                  th:text="'(' + ${anexo.contentType} + ' · ' + ${#numbers.formatDecimal(anexo.tamanhoBytes / 1048576.0, 1, 2)} + ' MB)'"></span>
+                            <form th:action="@{/multas/{id}/anexos/{anexoId}/deletar(id=${multa.id},anexoId=${anexo.id})}"
+                                  method="post" style="display:inline; margin:0">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="btn btn-danger btn-sm">Remover</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+
+                <div style="display:flex; gap:.75rem; margin-top:1rem">
+                    <button type="submit" class="btn btn-primary"
+                            th:text="${isEdit ? '💾 Salvar Alterações' : '➕ Criar Multa'}">Salvar</button>
+                    <a th:href="@{/multas}" class="btn btn-outline">Cancelar</a>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

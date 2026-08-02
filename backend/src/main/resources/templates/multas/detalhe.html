@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="'Multa #' + ${multa.id} + ' | OPR Multas'">Multa | OPR Multas</title>
+    <meta name="description" content="Detalhes da multa e anexos"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('multas')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>🚦 Multa #<span th:text="${multa.id}">1</span></h1>
+            <a th:href="@{/multas}" class="btn btn-outline">← Voltar à lista</a>
+        </div>
+
+        <div class="card-body">
+            <div class="case-meta">
+                <div class="case-meta-item">
+                    <span class="label">Placa</span>
+                    <span class="value placa" th:text="${multa.placa}">ABC1234</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Tipo</span>
+                    <span class="value" th:text="${multa.tipo}">Velocidade</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Valor</span>
+                    <span class="value" th:text="${#numbers.formatCurrency(multa.valor)}">R$ 0,00</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Status</span>
+                    <span class="badge"
+                          th:classappend="${multa.status.name().toLowerCase() == 'pendente' ? 'badge-pendente' : (multa.status.name().toLowerCase() == 'paga' ? 'badge-paga' : 'badge-cancelada')}"
+                          th:text="${multa.status}">PENDENTE</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Moderação</span>
+                    <span class="badge badge-aguardando" th:text="${multa.statusModeracao.name().replace('_', ' ')}">AGUARDANDO</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Data Infração</span>
+                    <span class="value" th:text="${multa.dataInfracao != null ? #temporals.format(multa.dataInfracao, 'dd/MM/yyyy') : '-'}">-</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Vencimento</span>
+                    <span class="value" th:text="${multa.dataVencimento != null ? #temporals.format(multa.dataVencimento, 'dd/MM/yyyy') : '-'}">-</span>
+                </div>
+            </div>
+
+            <div class="card-body-divider">
+                <h3>📝 Descrição</h3>
+                <p th:text="${multa.descricao}">Descrição da infração.</p>
+            </div>
+
+            <div class="card-body-divider">
+                <h3>📎 Anexos (<span th:text="${multa.anexos.size()}">0</span>)</h3>
+                <div class="empty-state" th:if="${multa.anexos.isEmpty()}">
+                    <p>Nenhum anexo nesta multa.</p>
+                </div>
+
+                <div class="anexo-grid" th:unless="${multa.anexos.isEmpty()}">
+                    <div class="anexo-card" th:each="anexo : ${multa.anexos}">
+                        <a th:href="@{/multas/{id}/anexos/{aid}(id=${multa.id},aid=${anexo.id})}" target="_blank">
+                            <img th:if="${anexo.contentType.startsWith('image/')}"
+                                 th:src="@{/multas/{id}/anexos/{aid}(id=${multa.id},aid=${anexo.id})}"
+                                 class="anexo-preview"
+                                 alt="Pré-visualização"/>
+                            <video th:if="${anexo.contentType.startsWith('video/')}"
+                                   th:src="@{/multas/{id}/anexos/{aid}(id=${multa.id},aid=${anexo.id})}"
+                                   class="anexo-preview"
+                                   controls
+                                   preload="metadata"></video>
+                            <div class="anexo-card-info">
+                                <span class="anexo-nome" th:text="${anexo.nomeOriginal}">arquivo.ext</span>
+                                <span class="text-muted"
+                                      th:text="${#numbers.formatDecimal(anexo.tamanhoBytes / 1048576.0, 1, 2)} + ' MB'">1.00 MB</span>
+                            </div>
+                        </a>
+                        <form th:action="@{/multas/{id}/anexos/{aid}/deletar(id=${multa.id},aid=${anexo.id})}"
+                              method="post" sec:authorize="hasRole('ADMIN')">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                            <button type="submit" class="btn btn-danger btn-sm">Remover</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body-divider" sec:authorize="hasRole('ADMIN')">
+                <a th:href="@{/multas/{id}/editar(id=${multa.id})}" class="btn btn-primary">✏️ Editar Multa</a>
+            </div>
+
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

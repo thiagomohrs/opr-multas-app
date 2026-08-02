@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Multas | OPR Multas</title>
+    <meta name="description" content="Listagem e gestão de multas de trânsito"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('multas')}"></nav>
+
+<main class="page-wrapper">
+
+    <!-- Flash messages -->
+    <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>Multas de Trânsito</h1>
+            <!-- Botão apenas para ADMIN -->
+            <a th:href="@{/multas/novo}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">
+                + Nova Multa
+            </a>
+        </div>
+
+        <div class="card-body">
+            <!-- Filtro por placa -->
+            <form th:action="@{/multas}" method="get" class="search-bar">
+                <input type="text"
+                       name="placa"
+                       id="search-placa"
+                       class="form-control"
+                       placeholder="Buscar por placa..."
+                       th:value="${searchPlaca}"
+                       autocomplete="off"/>
+                <button type="submit" class="btn btn-outline">🔍 Buscar</button>
+                <a th:href="@{/multas}" class="btn btn-outline" th:if="${searchPlaca != null and !searchPlaca.isEmpty()}">✕ Limpar</a>
+            </form>
+
+            <!-- Tabela -->
+            <div class="table-responsive">
+                <div class="empty-state" th:if="${multas.isEmpty()}">
+                    <div class="icon">📭</div>
+                    <p>Nenhuma multa encontrada.</p>
+                </div>
+
+                <table class="table" th:unless="${multas.isEmpty()}">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Placa</th>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Data Infração</th>
+                        <th>Vencimento</th>
+                        <th>Status</th>
+                        <th>Moderação</th>
+                        <th>Anexos</th>
+                        <th>Ações</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="multa : ${multas}">
+                        <td th:text="${multa.id}">1</td>
+                        <td><span class="placa" th:text="${multa.placa}">ABC1234</span></td>
+                        <td th:text="${multa.tipo}">Velocidade</td>
+                        <td th:text="${multa.descricao}">Descrição</td>
+                        <td th:text="${#numbers.formatCurrency(multa.valor)}">R$ 0,00</td>
+                        <td th:text="${multa.dataInfracao != null ? #temporals.format(multa.dataInfracao, 'dd/MM/yyyy') : '-'}">-</td>
+                        <td th:text="${multa.dataVencimento != null ? #temporals.format(multa.dataVencimento, 'dd/MM/yyyy') : '-'}">-</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${multa.status.name().toLowerCase() == 'pendente' ? 'badge-pendente' : (multa.status.name().toLowerCase() == 'paga' ? 'badge-paga' : 'badge-cancelada')}"
+                                  th:text="${multa.status}">PENDENTE</span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${multa.statusModeracao.name() == 'APROVADA' ? 'badge-aprovada' : (multa.statusModeracao.name() == 'REJEITADA' ? 'badge-rejeitada' : (multa.statusModeracao.name() == 'EXPIRADA' ? 'badge-expirada' : (multa.statusModeracao.name() == 'EM_VOTACAO' ? 'badge-em-votacao' : 'badge-aguardando')))}"
+                                  th:text="${multa.statusModeracao.name().replace('_', ' ')}">AGUARDANDO</span>
+                        </td>
+                        <td>
+                            <span th:text="${multa.qtdAnexos}">0</span>
+                            <span class="text-muted" th:if="${multa.qtdAnexos > 0}" th:text="'📎'">📎</span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <a th:href="@{/multas/{id}(id=${multa.id})}" class="btn btn-outline btn-sm">Ver</a>
+                                <a th:href="@{/multas/{id}/editar(id=${multa.id})}"
+                                   class="btn btn-outline btn-sm" sec:authorize="hasRole('ADMIN')">✏️ Editar</a>
+                                <form th:action="@{/multas/{id}/deletar(id=${multa.id})}" method="post" style="margin:0"
+                                      sec:authorize="hasRole('ADMIN')"
+                                      onsubmit="return confirm('Deseja remover esta multa?')">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <button type="submit" class="btn btn-danger btn-sm">🗑️ Remover</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

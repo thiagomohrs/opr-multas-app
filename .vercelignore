@@ -1,0 +1,12 @@
+# Arquivos desnecessários no build da Vercel
+.git
+.vscode
+.idea
+backend/target
+backend/logs
+backend/*.db
+backend/*.mv.db
+backend/*.trace.db
+*.iml
+README.md
+start-backend.ps1

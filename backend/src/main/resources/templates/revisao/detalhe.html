@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="'Caso #' + ${multa.id} + ' | OPR Multas'">Caso | OPR Multas</title>
+    <meta name="description" content="Detalhes do caso e formulário de voto"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('revisao')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="card">
+        <div class="card-header">
+            <h1>⚖️ Caso #<span th:text="${multa.id}">1</span></h1>
+            <a th:href="@{/revisao}" class="btn btn-outline">← Voltar à fila</a>
+        </div>
+
+        <div class="card-body">
+
+            <div class="case-meta">
+                <div class="case-meta-item">
+                    <span class="label">Placa</span>
+                    <span class="value placa" th:text="${multa.placa}">ABC1234</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Tipo</span>
+                    <span class="value" th:text="${multa.tipo}">Velocidade</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Valor</span>
+                    <span class="value" th:text="${#numbers.formatCurrency(multa.valor)}">R$ 0,00</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Status</span>
+                    <span class="badge"
+                          th:classappend="${multa.statusModeracao.name() == 'AGUARDANDO_REVISAO' ? 'badge-aguardando' : 'badge-em-votacao'}"
+                          th:text="${multa.statusModeracao.name().replace('_', ' ')}">EM VOTAÇÃO</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Solicitante</span>
+                    <span class="value" th:text="${multa.usuario != null ? multa.usuario.nome : '-'}">-</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Prazo</span>
+                    <span class="value" th:text="${multa.prazoRevisao != null ? #temporals.format(multa.prazoRevisao, 'dd/MM/yyyy HH:mm') : '-'}">-</span>
+                </div>
+            </div>
+
+            <div class="card-body-divider">
+                <h3>📝 Descrição</h3>
+                <p th:text="${multa.descricao}">Descrição da infração.</p>
+            </div>
+
+            <!-- Evidências anexadas -->
+            <div class="card-body-divider">
+                <h3>📸 Evidências (<span th:text="${#lists.size(anexos)}">0</span>)</h3>
+                <div class="empty-state" th:if="${anexos.isEmpty()}">
+                    <p>Nenhuma evidência anexada a este caso.</p>
+                </div>
+                <div class="anexo-grid" th:unless="${anexos.isEmpty()}">
+                    <div class="anexo-card" th:each="anexo : ${anexos}">
+                        <img th:if="${anexo.contentType.startsWith('image/')}"
+                             th:src="@{/multas/{id}/anexos/{anexoId}(id=${multa.id}, anexoId=${anexo.id})}"
+                             th:alt="${anexo.nomeOriginal}"
+                             class="anexo-preview"/>
+                        <video th:if="${anexo.contentType.startsWith('video/')}" controls
+                               th:src="@{/multas/{id}/anexos/{anexoId}(id=${multa.id}, anexoId=${anexo.id})}"
+                               class="anexo-preview" preload="metadata"></video>
+                        <div class="anexo-card-info">
+                            <span class="anexo-nome" th:text="${anexo.nomeOriginal}">arquivo.png</span>
+                            <a th:href="@{/multas/{id}/anexos/{anexoId}(id=${multa.id}, anexoId=${anexo.id})}"
+                               target="_blank" class="text-muted">abrir em nova aba ↗</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel de pesos -->
+            <div class="card-body-divider">
+                <h3>📊 Pesos Acumulados</h3>
+                <div class="progress-track">
+                    <div class="progress-bar"
+                         th:style="'width:' + ${percentFavor} + '%'"></div>
+                </div>
+                <div class="progress-legend">
+                    <span class="text-success" th:text="'✅ A favor: ' + ${#numbers.formatDecimal(multa.pesoVotosAFavor, 1, 1)}">0.0</span>
+                    <span class="text-danger" th:text="'❌ Contra: ' + ${#numbers.formatDecimal(multa.pesoVotosContra, 1, 1)}">0.0</span>
+                </div>
+            </div>
+
+            <!-- Votos -->
+            <div class="card-body-divider">
+                <h3>🗳️ Votos (<span th:text="${#lists.size(votos)}">0</span>/<span th:text="${multa.votosNecessarios}">3</span>)</h3>
+                <div class="empty-state" th:if="${votos.isEmpty()}">
+                    <p>Ainda não há votos neste caso.</p>
+                </div>
+                <table class="table" th:unless="${votos.isEmpty()}">
+                    <thead>
+                    <tr>
+                        <th>Revisor</th>
+                        <th>Decisão</th>
+                        <th>Peso</th>
+                        <th>Score</th>
+                        <th>Data</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="voto : ${votos}">
+                        <td th:text="${voto.revisor.nome}">Revisor</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${voto.decisao.name() == 'APROVAR' ? 'badge-aprovada' : 'badge-rejeitada'}"
+                                  th:text="${voto.decisao.name()}">APROVAR</span>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(voto.pesoDoVoto, 1, 1)}">1.0</td>
+                        <td th:text="${voto.scoreRevisorNoMomento}">100</td>
+                        <td th:text="${#temporals.format(voto.votadoEm, 'dd/MM/yyyy HH:mm')}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Formulário de voto -->
+            <div class="card-body-divider">
+                <h3>🗳️ Seu Voto</h3>
+
+                <div class="alert alert-success" th:if="${meuVoto != null}">
+                    Você já votou: <strong th:text="${meuVoto.decisao.name()}">APROVAR</strong>
+                    (peso <span th:text="${#numbers.formatDecimal(meuVoto.pesoDoVoto, 1, 1)}">1.0</span>)
+                </div>
+
+                <form th:if="${meuVoto == null}" th:action="@{/revisao/{id}/votar(id=${multa.id})}"
+                      method="post" id="voto-form">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                    <div class="radio-group">
+                        <label class="radio-card radio-aprovar">
+                            <input type="radio" name="decisao" value="APROVAR" required/>
+                            <span class="radio-title">✅ Aprovar</span>
+                            <span class="radio-desc">Concordo que a multa é válida</span>
+                        </label>
+                        <label class="radio-card radio-rejeitar">
+                            <input type="radio" name="decisao" value="REJEITAR" required/>
+                            <span class="radio-title">❌ Rejeitar</span>
+                            <span class="radio-desc">Acredito que a multa deve ser contestada</span>
+                        </label>
+                    </div>
+
+                    <div class="voto-info">
+                        Seu peso neste voto:
+                        <strong th:text="${#numbers.formatDecimal(pesoVoto, 1, 1)}">1.0</strong>
+                        <span class="text-muted" th:text="'(score ' + ${currentUser != null ? currentUser.score : 0} + ' / limiar ' + ${limiarRevisor} + ')'">(score 100 / limiar 100)</span>
+                    </div>
+
+                    <div style="display:flex; gap:.75rem; margin-top:1rem">
+                        <button type="submit" class="btn btn-primary">Registrar Voto</button>
+                        <a th:href="@{/revisao}" class="btn btn-outline">Cancelar</a>
+                    </div>
+                </form>
+
+                <p th:if="${meuVoto != null}" class="text-muted">
+                    Cada caso pode ser votado apenas uma vez por revisor.
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

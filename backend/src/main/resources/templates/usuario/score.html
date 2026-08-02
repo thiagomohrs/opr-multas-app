@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Meu Score | OPR Multas</title>
+    <meta name="description" content="Histórico de reputação do usuário"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('score')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="card">
+        <div class="card-header">
+            <h1>⭐ Meu Score de Reputação</h1>
+            <a th:href="@{/revisao}" class="btn btn-outline" sec:authorize="hasRole('ADMIN') or @moderacaoAccess.isRevisor()">
+                Ir para a Revisão
+            </a>
+        </div>
+
+        <div class="card-body">
+            <div class="score-summary">
+                <div class="score-circle"
+                     th:classappend="${usuario.isRevisor} ? 'score-circle-revisor'">
+                    <span class="score-value" th:text="${usuario.score != null ? usuario.score : 0}">0</span>
+                    <span class="score-label">pontos</span>
+                </div>
+                <div class="score-details">
+                    <span class="badge"
+                          th:classappend="${usuario.isRevisor} ? 'badge-aprovada' : 'badge-expirada'"
+                          th:text="${usuario.isRevisor} ? 'Revisor' : 'Aprendiz'">Revisor</span>
+                    <p class="text-muted" th:text="'Limiar para revisor: ' + ${limiarRevisor} + ' pontos'">Limiar: 100 pontos</p>
+                    <p class="text-muted" th:if="${!usuario.isRevisor}" th:text="'Faltam ' + ${limiarRevisor - (usuario.score ?: 0)} + ' pontos para se tornar revisor.'">
+                        Faltam pontos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>📜 Histórico de Score</h1>
+        </div>
+        <div class="card-body">
+            <div class="empty-state" th:if="${historico.isEmpty()}">
+                <div class="icon">📭</div>
+                <p>Nenhum registro de pontuação ainda.</p>
+            </div>
+
+            <div class="table-responsive" th:unless="${historico.isEmpty()}">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Motivo</th>
+                        <th>Caso</th>
+                        <th>Variação</th>
+                        <th>Antes → Depois</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="reg : ${historico}">
+                        <td th:text="${#temporals.format(reg.registradoEm, 'dd/MM/yyyy HH:mm')}">-</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${reg.deltaScore >= 0 ? 'badge-paga' : 'badge-danger'}"
+                                  th:text="${reg.motivo.name().replace('_', ' ')}">VOTO_CORRETO</span>
+                        </td>
+                        <td th:text="${reg.multa != null ? '#' + reg.multa.id : '-'}">-</td>
+                        <td>
+                            <strong th:classappend="${reg.deltaScore >= 0 ? 'text-success' : 'text-danger'}"
+                                    th:text="${reg.deltaScore >= 0 ? '+' + reg.deltaScore : reg.deltaScore}">+5</strong>
+                        </td>
+                        <td th:text="${reg.scoreAntes} + ' → ' + ${reg.scoreDepois}">100 → 105</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" th:if="${!votos.isEmpty()}">
+        <div class="card-header">
+            <h1>🗳️ Meus Votos</h1>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Caso</th>
+                        <th>Decisão</th>
+                        <th>Peso</th>
+                        <th>Resultado</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="voto : ${votos}">
+                        <td th:text="${#temporals.format(voto.votadoEm, 'dd/MM/yyyy HH:mm')}">-</td>
+                        <td th:text="'#' + ${voto.multa.id}">#1</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${voto.decisao.name() == 'APROVAR' ? 'badge-aprovada' : 'badge-rejeitada'}"
+                                  th:text="${voto.decisao.name()}">APROVAR</span>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(voto.pesoDoVoto, 1, 1)}">1.0</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${voto.multa.statusModeracao.name() == 'APROVADA' ? 'badge-aprovada' : (voto.multa.statusModeracao.name() == 'REJEITADA' ? 'badge-rejeitada' : 'badge-expirada')}"
+                                  th:text="${voto.multa.statusModeracao.name().replace('_', ' ')}">APROVADA</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

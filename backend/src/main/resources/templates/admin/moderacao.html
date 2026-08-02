@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard de Moderação | OPR Multas</title>
+    <meta name="description" content="Visão administrativa de todos os casos de moderação"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('admin')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>🛠️ Dashboard de Moderação</h1>
+            <span class="badge badge-pendente" th:text="'Total: ' + ${#lists.size(casos)}">Total: 0</span>
+        </div>
+
+        <div class="card-body">
+            <div class="empty-state" th:if="${casos.isEmpty()}">
+                <div class="icon">📭</div>
+                <p>Nenhum caso registrado.</p>
+            </div>
+
+            <div class="table-responsive" th:unless="${casos.isEmpty()}">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Placa</th>
+                        <th>Solicitante</th>
+                        <th>Status</th>
+                        <th>A Favor</th>
+                        <th>Contra</th>
+                        <th>Malicioso</th>
+                        <th>Prazo</th>
+                        <th>Ações</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="caso : ${casos}">
+                        <td th:text="${caso.id}">1</td>
+                        <td><span class="placa" th:text="${caso.placa}">ABC1234</span></td>
+                        <td th:text="${caso.usuario != null ? caso.usuario.nome : '-'}">-</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${caso.statusModeracao.name() == 'APROVADA' ? 'badge-aprovada' : (caso.statusModeracao.name() == 'REJEITADA' ? 'badge-rejeitada' : (caso.statusModeracao.name() == 'EXPIRADA' ? 'badge-expirada' : (caso.statusModeracao.name() == 'EM_VOTACAO' ? 'badge-em-votacao' : 'badge-aguardando')))}"
+                                  th:text="${caso.statusModeracao.name().replace('_', ' ')}">AGUARDANDO</span>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(caso.pesoVotosAFavor, 1, 1)}">0.0</td>
+                        <td th:text="${#numbers.formatDecimal(caso.pesoVotosContra, 1, 1)}">0.0</td>
+                        <td>
+                            <span class="badge badge-danger" th:if="${caso.maliciosa}" th:text="'🚩 Flagged'">Flagged</span>
+                            <span class="text-muted" th:unless="${caso.maliciosa}">—</span>
+                        </td>
+                        <td th:text="${caso.prazoRevisao != null ? #temporals.format(caso.prazoRevisao, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                        <td>
+                            <div class="actions">
+                                <a th:href="@{/admin/moderacao/{id}(id=${caso.id})}" class="btn btn-outline btn-sm">Detalhe</a>
+                                <form th:action="@{/admin/moderacao/{id}/flag(id=${caso.id})}" method="post" style="margin:0"
+                                      th:if="${!caso.maliciosa and (caso.statusModeracao.name() == 'APROVADA' or caso.statusModeracao.name() == 'EM_VOTACAO')}"
+                                      onsubmit="return confirm('Marcar como malicioso e penalizar revisores que aprovaram?')">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <button type="submit" class="btn btn-danger btn-sm">🚩 Flag</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

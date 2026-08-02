@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="'Caso #' + ${multa.id} + ' | OPR Multas'">Caso | OPR Multas</title>
+    <meta name="description" content="Detalhes administrativos do caso de moderação"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('admin')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="card">
+        <div class="card-header">
+            <h1>⚖️ Caso #<span th:text="${multa.id}">1</span></h1>
+            <a th:href="@{/admin/moderacao}" class="btn btn-outline">← Voltar ao dashboard</a>
+        </div>
+
+        <div class="card-body">
+            <div class="case-meta">
+                <div class="case-meta-item">
+                    <span class="label">Placa</span>
+                    <span class="value placa" th:text="${multa.placa}">ABC1234</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Tipo</span>
+                    <span class="value" th:text="${multa.tipo}">Velocidade</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Valor</span>
+                    <span class="value" th:text="${#numbers.formatCurrency(multa.valor)}">R$ 0,00</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Status</span>
+                    <span class="badge"
+                          th:classappend="${multa.statusModeracao.name() == 'APROVADA' ? 'badge-aprovada' : (multa.statusModeracao.name() == 'REJEITADA' ? 'badge-rejeitada' : 'badge-expirada')}"
+                          th:text="${multa.statusModeracao.name().replace('_', ' ')}">APROVADA</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Solicitante</span>
+                    <span class="value" th:text="${multa.usuario != null ? multa.usuario.nome : '-'}">-</span>
+                </div>
+                <div class="case-meta-item">
+                    <span class="label">Malicioso</span>
+                    <span class="badge badge-danger" th:if="${multa.maliciosa}" th:text="'🚩 Flagged'">Flagged</span>
+                    <span class="text-muted" th:unless="${multa.maliciosa}">Não</span>
+                </div>
+            </div>
+
+            <div class="card-body-divider">
+                <h3>📝 Descrição</h3>
+                <p th:text="${multa.descricao}">Descrição da infração.</p>
+            </div>
+
+            <div class="card-body-divider">
+                <h3>🗳️ Votos</h3>
+                <div class="empty-state" th:if="${votos.isEmpty()}">
+                    <p>Nenhum voto registrado.</p>
+                </div>
+                <table class="table" th:unless="${votos.isEmpty()}">
+                    <thead>
+                    <tr>
+                        <th>Revisor</th>
+                        <th>Decisão</th>
+                        <th>Peso</th>
+                        <th>Score</th>
+                        <th>Feedback</th>
+                        <th>Δ Score</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="voto : ${votos}">
+                        <td th:text="${voto.revisor.nome}">Revisor</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${voto.decisao.name() == 'APROVAR' ? 'badge-aprovada' : 'badge-rejeitada'}"
+                                  th:text="${voto.decisao.name()}">APROVAR</span>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(voto.pesoDoVoto, 1, 1)}">1.0</td>
+                        <td th:text="${voto.scoreRevisorNoMomento}">100</td>
+                        <td>
+                            <span class="badge badge-paga" th:if="${voto.feedbackAplicado}">Aplicado</span>
+                            <span class="text-muted" th:unless="${voto.feedbackAplicado}">Pendente</span>
+                        </td>
+                        <td th:text="${voto.deltaScore != null ? voto.deltaScore : '-'}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card-body-divider" th:if="${!multa.maliciosa}">
+                <form th:action="@{/admin/moderacao/{id}/flag(id=${multa.id})}" method="post"
+                      onsubmit="return confirm('Marcar como malicioso e penalizar revisores que aprovaram?')">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit" class="btn btn-danger">🚩 Marcar como Malicioso</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

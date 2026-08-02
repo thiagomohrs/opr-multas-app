@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Fila de Revisão | OPR Multas</title>
+    <meta name="description" content="Painel do revisor - casos pendentes de moderação"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav th:replace="~{layout :: navbar('revisao')}"></nav>
+
+<main class="page-wrapper">
+
+    <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1>🛡️ Fila de Revisão</h1>
+            <a th:href="@{/meu-score}" class="btn btn-outline">⭐ Meu Score</a>
+        </div>
+
+        <div class="card-body">
+            <p class="text-muted">
+                Casos aguardando moderação. Quórum necessário:
+                <strong th:text="${votosNecessarios}">3</strong> votos.
+            </p>
+
+            <div class="empty-state" th:if="${fila.isEmpty()}">
+                <div class="icon">🎉</div>
+                <p>Nenhum caso pendente de revisão no momento.</p>
+            </div>
+
+            <div class="table-responsive" th:unless="${fila.isEmpty()}">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Placa</th>
+                        <th>Infração</th>
+                        <th>Valor</th>
+                        <th>Solicitante</th>
+                        <th>Status</th>
+                        <th>Votos</th>
+                        <th>Prazo</th>
+                        <th>Ação</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="caso : ${fila}">
+                        <td th:text="${caso.id}">1</td>
+                        <td><span class="placa" th:text="${caso.placa}">ABC1234</span></td>
+                        <td th:text="${caso.tipo}">Velocidade</td>
+                        <td th:text="${#numbers.formatCurrency(caso.valor)}">R$ 0,00</td>
+                        <td th:text="${caso.usuario != null ? caso.usuario.nome : '-'}">-</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${caso.statusModeracao.name() == 'AGUARDANDO_REVISAO' ? 'badge-aguardando' : 'badge-em-votacao'}"
+                                  th:text="${caso.statusModeracao.name().replace('_', ' ')}">AGUARDANDO</span>
+                        </td>
+                        <td>
+                            <strong th:text="${caso.votosRegistrados}">0</strong>
+                            <span class="text-muted" th:text="'/' + ${caso.votosNecessarios}">/3</span>
+                        </td>
+                        <td th:text="${caso.prazoRevisao != null ? #temporals.format(caso.prazoRevisao, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                        <td>
+                            <a th:href="@{/revisao/{id}(id=${caso.id})}" class="btn btn-primary btn-sm">Revisar</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" th:if="${!resolvidos.isEmpty()}">
+        <div class="card-header">
+            <h1>✅ Casos Resolvidos</h1>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Placa</th>
+                        <th>Resultado</th>
+                        <th>Peso Favor</th>
+                        <th>Peso Contra</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="caso : ${resolvidos}">
+                        <td th:text="${caso.id}">1</td>
+                        <td><span class="placa" th:text="${caso.placa}">ABC1234</span></td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${caso.statusModeracao.name() == 'APROVADA' ? 'badge-aprovada' : (caso.statusModeracao.name() == 'REJEITADA' ? 'badge-rejeitada' : 'badge-expirada')}"
+                                  th:text="${caso.statusModeracao.name().replace('_', ' ')}">APROVADA</span>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(caso.pesoVotosAFavor, 1, 1)}">0.0</td>
+                        <td th:text="${#numbers.formatDecimal(caso.pesoVotosContra, 1, 1)}">0.0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>
