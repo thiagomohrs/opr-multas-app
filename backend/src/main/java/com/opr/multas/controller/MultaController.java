@@ -58,7 +58,7 @@ public class MultaController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public String criar(@Valid @ModelAttribute Multa multa, BindingResult result,
-                        @RequestParam(value = "anexos", required = false) MultipartFile[] anexos,
+                        @RequestParam(value = "arquivos", required = false) MultipartFile[] arquivos,
                         Model model, Authentication authentication, RedirectAttributes redirectAttrs) {
         if (result.hasErrors()) {
             model.addAttribute("statusValues", Multa.StatusMulta.values());
@@ -66,7 +66,7 @@ public class MultaController {
             return "multas/form";
         }
         try {
-            multaService.criar(multa, usuarioService.getCurrentUsuario(authentication), anexos);
+            multaService.criar(multa, usuarioService.getCurrentUsuario(authentication), arquivos);
         } catch (IllegalArgumentException ex) {
             model.addAttribute("errorMessage", ex.getMessage());
             model.addAttribute("statusValues", Multa.StatusMulta.values());
@@ -90,7 +90,7 @@ public class MultaController {
     @PreAuthorize("hasRole('ADMIN')")
     public String atualizar(@PathVariable Long id, @Valid @ModelAttribute Multa multa,
                             BindingResult result,
-                            @RequestParam(value = "anexos", required = false) MultipartFile[] anexos,
+                            @RequestParam(value = "arquivos", required = false) MultipartFile[] arquivos,
                             Model model, RedirectAttributes redirectAttrs) {
         if (result.hasErrors()) {
             multa.setAnexos(multaService.buscarEntidadePorId(id).getAnexos());
@@ -99,7 +99,7 @@ public class MultaController {
             return "multas/form";
         }
         try {
-            multaService.atualizar(id, multa, anexos);
+            multaService.atualizar(id, multa, arquivos);
         } catch (IllegalArgumentException ex) {
             multa.setAnexos(multaService.buscarEntidadePorId(id).getAnexos());
             model.addAttribute("errorMessage", ex.getMessage());

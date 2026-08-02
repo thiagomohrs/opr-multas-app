@@ -22,7 +22,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/h2-console/**",
-                    "/oauth2/**", "/login/oauth2/**").permitAll()
+                    "/oauth2/**", "/login/oauth2/**", "/api/health").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

@@ -12,6 +12,9 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
+# Perfil de produção (PostgreSQL/Supabase). Pode ser sobrescrito via env na Vercel.
+ENV SPRING_PROFILES_ACTIVE=prod
+
 # Vercel injeta a variável PORT em tempo de execução
 EXPOSE 8080
 

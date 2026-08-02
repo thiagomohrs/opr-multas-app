@@ -97,6 +97,7 @@ public class MultaService {
     }
 
     private void anexarArquivos(Multa multa, MultipartFile[] arquivos) {
+        log.info("DEBUG anexarArquivos: arquivos={}", arquivos == null ? "null" : arquivos.length);
         if (arquivos == null) {
             return;
         }
