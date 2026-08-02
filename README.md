@@ -119,12 +119,15 @@ H2 em memória por padrão (dados são perdidos ao reiniciar). Para PostgreSQL e
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "prod"
-$env:DATABASE_URL = "jdbc:postgresql://host:5432/multasdb"
-$env:DATABASE_USER = "seu_usuario"
-$env:DATABASE_PASSWORD = "sua_senha"
+# Aceita o formato nativo do Supabase (convertido para JDBC automaticamente):
+$env:DATABASE_URL = "postgresql://usuario:senha@db.xxxx.supabase.co:5432/postgres"
+# ou formato JDBC:
+# $env:DATABASE_URL = "jdbc:postgresql://host:5432/multasdb"
+$env:DATABASE_USER = "seu_usuario"       # opcional se a URL já tiver credenciais
+$env:DATABASE_PASSWORD = "sua_senha"     # opcional se a URL já tiver credenciais
 ```
 
-O perfil `prod` também desativa o seed de dados de demonstração (`opr.seed-demo-data=false`).
+O seed de demonstração roda por padrão também em `prod` (para o primeiro acesso criar `admin`). Para desativar: `OPR_SEED_DEMO_DATA=false`. As senhas do seed vêm de env vars (`OPR_SEED_ADMIN_SENHA`, `OPR_SEED_USER_SENHA`, `OPR_SEED_REVISOR_SENHA`) — nunca hardcode em produção.
 
 ## 🚀 Deploy na Vercel
 
@@ -153,14 +156,23 @@ Configure no dashboard (Project Settings → Environment Variables) ou via `verc
 |---|---|---|
 | `GOOGLE_CLIENT_ID` | Não* | Client ID do Google OAuth2 |
 | `GOOGLE_CLIENT_SECRET` | Não* | Client Secret do Google OAuth2 |
-| `SPRING_PROFILES_ACTIVE` | Não | `prod` para usar PostgreSQL e desativar dados de demonstração |
-| `DATABASE_URL` | Se `prod` | URL JDBC do PostgreSQL |
-| `DATABASE_USER` | Se `prod` | Usuário do banco |
-| `DATABASE_PASSWORD` | Se `prod` | Senha do banco |
+| `SPRING_PROFILES_ACTIVE` | Não | `prod` para usar PostgreSQL (já definido no Dockerfile.vercel) |
+| `DATABASE_URL` | Se `prod` | URL do PostgreSQL: `postgresql://...` (Supabase) ou `jdbc:postgresql://...` |
+| `DATABASE_USER` | Se `prod` | Usuário do banco (opcional se a URL tiver credenciais) |
+| `DATABASE_PASSWORD` | Se `prod` | Senha do banco (opcional se a URL tiver credenciais) |
+| `OPR_SEED_ADMIN_SENHA` | Não | Senha do usuário `admin` criado pelo seed (default `admin123`) |
+| `OPR_SEED_USER_SENHA` | Não | Senha do usuário `user` criado pelo seed (default `user123`) |
+| `OPR_SEED_REVISOR_SENHA` | Não | Senha dos revisores `revisor`, `revisor2`, `revisor3` (default `revisor123`) |
+| `OPR_SEED_DEMO_DATA` | Não | `false` para desativar o seed de demonstração em produção |
 
-\* Sem as credenciais Google, o login por formulário continua funcionando (no perfil padrão, com os usuários de demonstração).
+\* Sem as credenciais Google, o login por formulário continua funcionando.
 
 > **Importante:** ao usar Google OAuth2, adicione `https://<seu-projeto>.vercel.app/login/oauth2/code/google` como URI de redirecionamento no Google Cloud Console.
+
+### Segurança
+
+- **Nunca commite segredos.** Credenciais vão exclusivamente por env vars da Vercel (`DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `OPR_SEED_*`, `GOOGLE_CLIENT_*`).
+- `application-prod.properties` e afins estão no `.gitignore` — não devem ser versionados.
 
 ### Limitações
 
@@ -182,9 +194,8 @@ opr-multas-app/
 │       │   ├── repository/
 │       │   └── service/      # Auth, Multas, Moderação, Score, OAuth2
 │       └── resources/
-│           ├── application.properties
+│           ├── application.properties        # base (banco via env DATABASE_URL)
 │           ├── application-dev.properties   # perfil dev (H2 console, cache Thymeleaf)
-│           ├── application-prod.properties  # perfil prod (PostgreSQL, sem demo data)
 │           ├── static/css/app.css
 │           └── templates/    # layout (navbar), login, multas, revisao, admin, usuario
 ├── Dockerfile.vercel   # build de container para a Vercel

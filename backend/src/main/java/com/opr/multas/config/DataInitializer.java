@@ -38,6 +38,17 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${opr.seed-demo-data:true}")
     private boolean seedDemoData;
 
+    // Senhas dos usuários de demonstração vêm de env (NUNCA hardcode em produção).
+    // Ex.: OPR_SEED_ADMIN_SENHA / OPR_SEED_USER_SENHA / OPR_SEED_REVISOR_SENHA
+    @Value("${opr.seed.admin-senha:admin123}")
+    private String adminSenha;
+
+    @Value("${opr.seed.user-senha:user123}")
+    private String userSenha;
+
+    @Value("${opr.seed.revisor-senha:revisor123}")
+    private String revisorSenha;
+
     @Override
     public void run(String... args) {
         if (!seedDemoData) {
@@ -45,11 +56,11 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
         log.info("Inicializando dados de demonstração...");
-        Usuario admin = criarUsuarioSeNaoExiste("admin", "admin123", "Administrador", "admin@opr.com", "ADMIN", 150, true);
-        criarUsuarioSeNaoExiste("user", "user123", "Usuário Teste", "user@opr.com", "USER", 0, false);
-        Usuario revisor1 = criarUsuarioSeNaoExiste("revisor", "revisor123", "Revisor Teste", "revisor@opr.com", "USER", 130, true);
-        Usuario revisor2 = criarUsuarioSeNaoExiste("revisor2", "revisor123", "Revisor Ana", "revisor2@opr.com", "USER", 110, true);
-        Usuario revisor3 = criarUsuarioSeNaoExiste("revisor3", "revisor123", "Revisor Carlos", "revisor3@opr.com", "USER", 105, true);
+        Usuario admin = criarUsuarioSeNaoExiste("admin", adminSenha, "Administrador", "admin@opr.com", "ADMIN", 150, true);
+        criarUsuarioSeNaoExiste("user", userSenha, "Usuário Teste", "user@opr.com", "USER", 0, false);
+        Usuario revisor1 = criarUsuarioSeNaoExiste("revisor", revisorSenha, "Revisor Teste", "revisor@opr.com", "USER", 130, true);
+        Usuario revisor2 = criarUsuarioSeNaoExiste("revisor2", revisorSenha, "Revisor Ana", "revisor2@opr.com", "USER", 110, true);
+        Usuario revisor3 = criarUsuarioSeNaoExiste("revisor3", revisorSenha, "Revisor Carlos", "revisor3@opr.com", "USER", 105, true);
 
         criarCasosDemo(admin, List.of(revisor1, revisor2, revisor3));
         log.info("Inicialização de dados concluída.");
@@ -68,7 +79,14 @@ public class DataInitializer implements CommandLineRunner {
             usuario.setScore(score);
             usuario.setIsRevisor(isRevisor);
             usuario.setLastScoreUpdate(LocalDateTime.now());
-            usuarioRepository.save(usuario);
+            try {
+                usuarioRepository.save(usuario);
+            } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+                // Instancia concorrente (serverless) pode ter criado o mesmo usuario.
+                // Re-tenta a leitura em vez de falhar o startup.
+                log.warn("Usuario '{}' ja existe (criado por outra instancia): {}", login, ex.getMessage());
+                return usuarioRepository.findByLogin(login).orElse(usuario);
+            }
             log.info("Usuário '{}' criado com role '{}' e score {}.", login, role, score);
             return usuario;
         });

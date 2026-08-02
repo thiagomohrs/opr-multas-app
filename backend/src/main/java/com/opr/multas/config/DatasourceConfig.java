@@ -39,10 +39,12 @@ public class DatasourceConfig {
         if (url != null && (url.startsWith("postgresql://") || url.startsWith("postgres://"))) {
             UrlInfo info = converterParaJdbc(url);
             url = info.jdbcUrl;
-            if (!StringUtils.hasText(username)) {
+            // Credenciais presentes na URL têm prioridade sobre as properties/env,
+            // pois são a fonte de verdade quando vêm do Supabase.
+            if (StringUtils.hasText(info.username)) {
                 username = info.username;
             }
-            if (!StringUtils.hasText(password)) {
+            if (StringUtils.hasText(info.password)) {
                 password = info.password;
             }
         }

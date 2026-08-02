@@ -36,6 +36,12 @@ build/
 backend/application-local.properties
 backend/logs/
 
+# Arquivos de configuração que podem conter segredos NÃO devem ser commitados.
+# Credenciais vão por env vars (DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD, OPR_SEED_*).
+backend/src/main/resources/application-prod.properties
+backend/src/main/resources/application-prod-*.properties
+backend/src/main/resources/application-local.properties
+
 # ── H2 Database ────────────────────────────────
 backend/*.db
 backend/*.mv.db
