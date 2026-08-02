@@ -93,7 +93,7 @@ public class DatasourceConfig {
         }
 
         HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(url);
+        ds.setJdbcUrl(garantirPreparedStatementsOff(url));
         if (StringUtils.hasText(username)) {
             ds.setUsername(username);
         }
@@ -104,14 +104,35 @@ public class DatasourceConfig {
         return ds;
     }
 
+    /**
+     * Desativa prepared statements server-side (prepareThreshold=0).
+     * Necessário quando o pooler do Supabase (porta 6543, transaction-mode) é
+     * usado: ele não suporta prepared statements nomeados do driver JDBC e a app
+     * falha com "prepared statement \"S_1\" already exists". É inócuo em conexão
+     * direta (porta 5432), apenas evita o cache no servidor.
+     */
+    private String garantirPreparedStatementsOff(String url) {
+        if (url == null || !url.startsWith("jdbc:postgresql")) {
+            return url;
+        }
+        String separador = url.indexOf('?') >= 0 ? "&" : "?";
+        return url + separador + "prepareThreshold=0";
+    }
+
     private boolean isUrlPostgresValida(String url) {
         return url.startsWith("jdbc:postgresql://")
             || url.startsWith("postgresql://")
             || url.startsWith("postgres://");
     }
 
+    /**
+     * Prefere a URL NÃO-pooling (porta 5432, conexão direta ao Supabase): suporta
+     * prepared statements nativamente e não depende do PgBouncer/Supavisor.
+     * O pooler (porta 6543, transaction-mode) não suporta prepared statements do
+     * driver JDBC — se for usado, o DatasourceConfig adiciona prepareThreshold=0.
+     */
     private String primeiraUrlSupabaseValida() {
-        for (String candidata : new String[] {postgresUrl, postgresUrlNonPooling, postgresPrismaUrl}) {
+        for (String candidata : new String[] {postgresUrlNonPooling, postgresUrl, postgresPrismaUrl}) {
             if (StringUtils.hasText(candidata) && isUrlPostgresValida(candidata)) {
                 return candidata;
             }

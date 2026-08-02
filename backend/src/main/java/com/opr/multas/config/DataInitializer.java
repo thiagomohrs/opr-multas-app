@@ -11,6 +11,7 @@ import com.opr.multas.repository.UsuarioRepository;
 import com.opr.multas.service.ModeracaoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -30,11 +31,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataInitializer {
 
-    private final UsuarioRepository usuarioRepository;
-    private final MultaRepository multaRepository;
+    private final ObjectProvider<UsuarioRepository> usuarioRepositoryProvider;
+    private final ObjectProvider<MultaRepository> multaRepositoryProvider;
     private final PasswordEncoder passwordEncoder;
     private final ModeracaoProperties props;
-    private final ModeracaoService moderacaoService;
+    private final ObjectProvider<ModeracaoService> moderacaoServiceProvider;
+
+    private UsuarioRepository usuarioRepository;
+    private MultaRepository multaRepository;
+    private ModeracaoService moderacaoService;
 
     @Value("${opr.seed-demo-data:true}")
     private boolean seedDemoData;
@@ -75,6 +80,9 @@ public class DataInitializer {
             return;
         }
         log.info("Inicializando dados de demonstração...");
+        this.usuarioRepository = usuarioRepositoryProvider.getObject();
+        this.multaRepository = multaRepositoryProvider.getObject();
+        this.moderacaoService = moderacaoServiceProvider.getObject();
         Usuario admin = criarUsuarioSeNaoExiste("admin", adminSenha, "Administrador", "admin@opr.com", "ADMIN", 150, true);
         criarUsuarioSeNaoExiste("user", userSenha, "Usuário Teste", "user@opr.com", "USER", 0, false);
         Usuario revisor1 = criarUsuarioSeNaoExiste("revisor", revisorSenha, "Revisor Teste", "revisor@opr.com", "USER", 130, true);
