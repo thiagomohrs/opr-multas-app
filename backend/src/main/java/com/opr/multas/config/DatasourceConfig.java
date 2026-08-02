@@ -34,6 +34,17 @@ public class DatasourceConfig {
     @Value("${spring.datasource.hikari.initialization-fail-timeout:1}")
     private long initializationFailTimeout;
 
+    // Envs da integração Vercel x Supabase. Usadas quando DATABASE_URL está ausente
+    // ou malformada (ex.: apenas o host, sem esquema jdbc:postgresql://).
+    @Value("${POSTGRES_URL:}")
+    private String postgresUrl;
+    @Value("${POSTGRES_URL_NON_POOLING:}")
+    private String postgresUrlNonPooling;
+    @Value("${POSTGRES_PRISMA_URL:}")
+    private String postgresPrismaUrl;
+    @Value("${POSTGRES_DATABASE:}")
+    private String postgresDatabase;
+
     @Bean
     public DataSource dataSource(DataSourceProperties properties) {
         String url = properties.getUrl();
@@ -41,8 +52,10 @@ public class DatasourceConfig {
         String password = properties.getPassword();
 
         if (url != null) {
-            if (url.startsWith("jdbc:postgresql://")) {
-                UrlInfo info = extrairCredenciaisDaQuery(url);
+            if (isUrlPostgresValida(url)) {
+                // URL válida (jdbc:postgresql://, postgresql:// ou postgres://):
+                // normaliza e extrai credenciais conforme o formato.
+                UrlInfo info = normalizar(url);
                 url = info.jdbcUrl;
                 if (StringUtils.hasText(info.username)) {
                     username = info.username;
@@ -50,14 +63,24 @@ public class DatasourceConfig {
                 if (StringUtils.hasText(info.password)) {
                     password = info.password;
                 }
-            } else if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
-                UrlInfo info = converterParaJdbc(url);
-                url = info.jdbcUrl;
-                if (StringUtils.hasText(info.username)) {
-                    username = info.username;
-                }
-                if (StringUtils.hasText(info.password)) {
-                    password = info.password;
+            } else if (!url.startsWith("jdbc:h2")) {
+                // DATABASE_URL presente porém inválida (ex.: só o host, sem esquema).
+                // Tenta as URLs da integração Supabase (pooler IPv4, credenciais reais);
+                // caso contrário, monta uma JDBC completa a partir do host informado.
+                String candidata = primeiraUrlSupabaseValida();
+                if (candidata != null) {
+                    UrlInfo info = normalizar(candidata);
+                    url = info.jdbcUrl;
+                    if (StringUtils.hasText(info.username)) {
+                        username = info.username;
+                    }
+                    if (StringUtils.hasText(info.password)) {
+                        password = info.password;
+                    }
+                    log.warn("DATABASE_URL inválida '{}'; usando URL da integração Supabase.", properties.getUrl());
+                } else {
+                    url = montarJdbcDeHost(properties.getUrl());
+                    log.warn("DATABASE_URL sem esquema JDBC; montada conexão para host {}.", properties.getUrl());
                 }
             }
         }
@@ -79,6 +102,33 @@ public class DatasourceConfig {
         }
         ds.setInitializationFailTimeout(initializationFailTimeout);
         return ds;
+    }
+
+    private boolean isUrlPostgresValida(String url) {
+        return url.startsWith("jdbc:postgresql://")
+            || url.startsWith("postgresql://")
+            || url.startsWith("postgres://");
+    }
+
+    private String primeiraUrlSupabaseValida() {
+        for (String candidata : new String[] {postgresUrl, postgresUrlNonPooling, postgresPrismaUrl}) {
+            if (StringUtils.hasText(candidata) && isUrlPostgresValida(candidata)) {
+                return candidata;
+            }
+        }
+        return null;
+    }
+
+    private String montarJdbcDeHost(String host) {
+        String db = StringUtils.hasText(postgresDatabase) ? postgresDatabase : "postgres";
+        return "jdbc:postgresql://" + host + ":5432/" + db + "?sslmode=require";
+    }
+
+    private UrlInfo normalizar(String url) {
+        if (url.startsWith("jdbc:postgresql://")) {
+            return extrairCredenciaisDaQuery(url);
+        }
+        return converterParaJdbc(url);
     }
 
     /**
