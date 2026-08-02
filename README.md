@@ -53,13 +53,17 @@ Acesse: **http://localhost:8080**
 
 ## 👤 Usuários de Teste
 
-| Usuário  | Senha        | Role  | Score | Revisor |
-|----------|--------------|-------|-------|---------|
-| `admin`  | `admin123`   | ADMIN | 150   | Sim     |
-| `revisor`| `revisor123` | USER  | 130   | Sim     |
-| `user`   | `user123`    | USER  | 0     | Não     |
+Criados pelo `DataInitializer` no primeiro boot (passwords padrão; podem ser sobrescritas via env `OPR_SEED_*_SENHA`):
 
-O `DataInitializer` também cria 3 casos de demonstração para popular a fila de revisão.
+| Usuário   | Senha        | Role  | Score | Revisor |
+|-----------|--------------|-------|-------|---------|
+| `admin`   | `admin123`   | ADMIN | 150   | Sim     |
+| `revisor` | `revisor123` | USER  | 130   | Sim     |
+| `revisor2`| `revisor123` | USER  | 110   | Sim     |
+| `revisor3`| `revisor123` | USER  | 105   | Sim     |
+| `user`    | `user123`    | USER  | 0     | Não     |
+
+O seed também cria 7 casos de demonstração (`DEMO-1001`…`DEMO-7007`) cobrindo os status da fila — aguardando, em votação, aprovada, rejeitada, expirada e maliciosa — além de **1 anexo (evidência)** no caso `DEMO-1001`.
 
 ## 🔐 Google OAuth2
 
@@ -112,6 +116,16 @@ opr.score.voto-correto-revisor=5
 opr.score.voto-incorreto-revisor=-3
 opr.score.voto-malicioso-revisor=-15
 ```
+
+## 📎 Anexos / Evidências
+
+- Upload de **até 10 MB** por arquivo (`spring.servlet.multipart.max-file-size=10MB`), múltiplos arquivos por caso.
+- Formatos aceitos por content-type **e** extensão: imagens (`jpg jpeg png gif webp bmp svg`) e vídeos (`mp4 webm mov m4v mkv avi`).
+- As evidências aparecem na galeria do detalhe do caso e na página de revisão (`<img>`/`<video>`); ADMIN/revisor podem remover anexos.
+
+## 🩺 Health Check
+
+- `GET /api/health` é público e responde `{"status":"UP"}` — usado para verificar se a aplicação subiu (ex.: no deploy da Vercel).
 
 ## 🗄️ Banco de Dados
 
@@ -188,9 +202,9 @@ opr-multas-app/
 │   ├── pom.xml
 │   └── src/main/
 │       ├── java/com/opr/multas/
-│       │   ├── config/       # Security, OAuth2, propriedades, job de expiração
-│       │   ├── controller/   # Auth, Multas, Revisão, Score, Admin
-│       │   ├── model/        # Usuario, Multa, VotoRevisao, HistoricoScore, enums
+│       │   ├── config/       # Security, OAuth2, datasource (conversor p/ JDBC), seed, job de expiração, log de requisições
+│       │   ├── controller/   # Auth, Multas, Revisão, Score, Admin, Health
+│       │   ├── model/        # Usuario, Multa, AnexoMulta, VotoRevisao, HistoricoScore, enums
 │       │   ├── repository/
 │       │   └── service/      # Auth, Multas, Moderação, Score, OAuth2
 │       └── resources/

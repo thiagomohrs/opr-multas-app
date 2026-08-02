@@ -35,12 +35,40 @@ if (-not $javaExe) {
     exit 1
 }
 
-# Verificar Maven
-if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
-    Write-Host "ERRO: Maven não encontrado no PATH." -ForegroundColor Red
-    Write-Host "Instale via: choco install maven  ou  https://maven.apache.org/download.cgi" -ForegroundColor Yellow
+# ── Localizar o Maven ─────────────────────────────────
+$mvnCmd = $null
+$mvnFromPath = Get-Command mvn -ErrorAction SilentlyContinue
+if ($mvnFromPath) {
+    $mvnCmd = $mvnFromPath.Source
+}
+if (-not $mvnCmd -and $env:MAVEN_HOME) {
+    $cand = Join-Path $env:MAVEN_HOME "bin\mvn.cmd"
+    if (Test-Path -LiteralPath $cand) { $mvnCmd = $cand }
+}
+if (-not $mvnCmd) {
+    $mvnDirs = @(
+        "$env:ProgramFiles\Apache\maven-*",
+        "$env:ProgramFiles\apache-maven-*",
+        "C:\apache-maven-*",
+        "$env:LOCALAPPDATA\Temp\opencode\maven\apache-maven-*",
+        "$env:USERPROFILE\scoop\apps\maven\*\bin"
+    )
+    foreach ($pat in $mvnDirs) {
+        $found = Get-ChildItem -Path $pat -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName "bin\mvn.cmd") } |
+            Select-Object -First 1
+        if ($found) {
+            $mvnCmd = Join-Path $found.FullName "bin\mvn.cmd"
+            break
+        }
+    }
+}
+if (-not $mvnCmd) {
+    Write-Host "ERRO: Maven não encontrado. Instale via: choco install maven  ou  https://maven.apache.org/download.cgi" -ForegroundColor Red
     exit 1
 }
+Write-Host "Maven encontrado em: $mvnCmd" -ForegroundColor Gray
+$env:Path = (Split-Path $mvnCmd) + ";" + $env:Path
 
 Write-Host ""
 Write-Host "Iniciando Spring Boot (perfil dev)..." -ForegroundColor Cyan
