@@ -140,6 +140,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
+
+        <!-- Spring Session JDBC: sessão persistida no Postgres. No Vercel (Fluid Compute)
+             o container escala a zero entre requests, e a sessão em memória (default)
+             se perde -> login volta a cair. Com store-type=jdbc a sessão fica no banco
+             e sobrevive ao scale-to-zero. Usado apenas no perfil prod (dev segue em memória). -->
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
     </dependencies>
     
     <build>
