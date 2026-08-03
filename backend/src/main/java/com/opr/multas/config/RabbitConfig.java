@@ -6,7 +6,7 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
@@ -39,7 +39,7 @@ public class RabbitConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.rabbitmq.url")
+    @ConditionalOnExpression("'${app.rabbitmq.url:}'.length() > 0")
     public CachingConnectionFactory rabbitConnectionFactory() {
         String url = url();
         if (!StringUtils.hasText(url)) {
@@ -69,19 +69,19 @@ public class RabbitConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.rabbitmq.url")
+    @ConditionalOnExpression("'${app.rabbitmq.url:}'.length() > 0")
     public Queue filaRevisaoQueue() {
         return new Queue(QUEUE_REVISAO, true);
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.rabbitmq.url")
+    @ConditionalOnExpression("'${app.rabbitmq.url:}'.length() > 0")
     public RabbitTemplate rabbitTemplate(CachingConnectionFactory rabbitConnectionFactory) {
         return new RabbitTemplate(rabbitConnectionFactory);
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.rabbitmq.url")
+    @ConditionalOnExpression("'${app.rabbitmq.url:}'.length() > 0")
     public AmqpAdmin rabbitAdmin(CachingConnectionFactory rabbitConnectionFactory) {
         RabbitAdmin admin = new RabbitAdmin(rabbitConnectionFactory);
         try {
