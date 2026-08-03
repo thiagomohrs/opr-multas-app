@@ -64,10 +64,10 @@ public class Multa {
     @Column(nullable = false)
     private Integer votosNecessarios = 3;
 
-    @Column(nullable = false)
+    @Column(name = "peso_votos_a_favor", nullable = false)
     private Double pesoVotosAFavor = 0.0;
 
-    @Column(nullable = false)
+    @Column(name = "peso_votos_contra", nullable = false)
     private Double pesoVotosContra = 0.0;
 
     private LocalDateTime prazoRevisao;

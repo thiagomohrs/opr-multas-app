@@ -1,13 +1,17 @@
 package com.opr.multas.service;
 
+import com.opr.multas.config.CacheConfig;
 import com.opr.multas.config.ModeracaoProperties;
 import com.opr.multas.model.AnexoMulta;
 import com.opr.multas.model.Multa;
 import com.opr.multas.model.StatusModeracaoMulta;
 import com.opr.multas.model.Usuario;
+import com.opr.multas.model.dto.MultaDto;
 import com.opr.multas.repository.MultaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -30,30 +35,52 @@ public class MultaService {
     private final MultaRepository multaRepository;
     private final ModeracaoProperties props;
 
-    public List<Multa> listarTodas() {
-        return multaRepository.findAllByOrderByIdDesc();
+    @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS)
+    public List<MultaDto> listarTodas() {
+        return lerLista(multaRepository.findAllByOrderByIdDesc());
     }
 
-    public List<Multa> listarPorPlaca(String placa) {
-        return multaRepository.findByPlacaContainingIgnoreCase(placa);
+    @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS)
+    public List<MultaDto> listarPorPlaca(String placa) {
+        return lerLista(multaRepository.findByPlacaContainingIgnoreCase(placa));
     }
 
+    /**
+     * Monta a lista de DTOs com os contadores (votos/anexos) resolvidos por queries
+     * agregadas em lote, evitando o N+1 disparado pelas colunas @Formula do entity.
+     */
+    private List<MultaDto> lerLista(List<Multa> entidades) {
+        if (entidades.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = entidades.stream().map(Multa::getId).toList();
+        Map<Long, Long> votos = MultaDto.countMap(multaRepository.countVotosPorMultaIdIn(ids));
+        Map<Long, Long> anexos = MultaDto.countMap(multaRepository.countAnexosPorMultaIdIn(ids));
+        return MultaDto.fromList(entidades, votos, anexos);
+    }
+
+    @Transactional(readOnly = true)
     public Multa buscarEntidadePorId(Long id) {
-        return multaRepository.findById(id)
+        Multa multa = multaRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Multa não encontrada: " + id));
+        // Inicializa a coleção lazy dentro da transação (open-in-view desativado)
+        // para que as views de detalhe/edição possam navegar pelos anexos.
+        multa.getAnexos().size();
+        return multa;
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public Multa criar(Multa multa, Usuario solicitante, MultipartFile[] arquivos) {
         aplicarDefaultsModeracao(multa);
         multa.setUsuario(solicitante);
-        multaRepository.save(multa);
         anexarArquivos(multa, arquivos);
         log.info("Criando multa para placa: {}", multa.getPlaca());
         return multaRepository.save(multa);
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public Multa atualizar(Long id, Multa novosDados, MultipartFile[] arquivos) {
         Multa multa = buscarEntidadePorId(id);
         multa.setPlaca(novosDados.getPlaca());
@@ -71,6 +98,7 @@ public class MultaService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void deletar(Long id) {
         log.info("Deletando multa {}", id);
         multaRepository.deleteById(id);
@@ -86,6 +114,7 @@ public class MultaService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void removerAnexo(Long multaId, Long anexoId) {
         Multa multa = buscarEntidadePorId(multaId);
         boolean removido = multa.getAnexos().removeIf(anexo -> anexo.getId().equals(anexoId));
@@ -97,7 +126,6 @@ public class MultaService {
     }
 
     private void anexarArquivos(Multa multa, MultipartFile[] arquivos) {
-        log.info("DEBUG anexarArquivos: arquivos={}", arquivos == null ? "null" : arquivos.length);
         if (arquivos == null) {
             return;
         }

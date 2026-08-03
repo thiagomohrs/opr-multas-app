@@ -1,0 +1,355 @@
+databaseChangeLog:
+  # Conjunto de migrations. Cada changeSet é idempotente e seguro para banco já
+  # existente: se a tabela alvo já existir (schema criado anteriormente pelo
+  # Hibernate), a configuração onFail=MARK_RAN pula o objeto e o marca como feito,
+  # preservando dados. Em banco novo, o schema é criado pelo Liquibase.
+  # -----------------------------------------------------------------------------
+  # 001 - usuarios
+  # -----------------------------------------------------------------------------
+  - changeSet:
+      id: 1-usuarios-base
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: usuarios
+      changes:
+        - createTable:
+            tableName: usuarios
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: login
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: senha
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email
+                  type: varchar(255)
+              - column:
+                  name: role
+                  type: varchar(255)
+              - column:
+                  name: score
+                  type: int
+              - column:
+                  name: is_revisor
+                  type: boolean
+              - column:
+                  name: last_score_update
+                  type: timestamp
+              - column:
+                  name: provider
+                  type: varchar(255)
+              - column:
+                  name: google_sub
+                  type: varchar(255)
+              - column:
+                  name: avatar_url
+                  type: varchar(255)
+            uniqueConstraints:
+              - columnNames: login
+                constraintName: uk_usuarios_login
+              - columnNames: email
+                constraintName: uk_usuarios_email
+
+  - changeSet:
+      id: 2-multas-base
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: multas
+      changes:
+        - createTable:
+            tableName: multas
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: placa
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tipo
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: descricao
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valor
+                  type: numeric(38,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_infracao
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_vencimento
+                  type: timestamp
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: usuario_id
+                  type: bigint
+              - column:
+                  name: status_moderacao
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: votos_necessarios
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peso_votos_a_favor
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peso_votos_contra
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: prazo_revisao
+                  type: timestamp
+              - column:
+                  name: maliciosa
+                  type: boolean
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: multas
+            baseColumnNames: usuario_id
+            referencedTableName: usuarios
+            referencedColumnNames: id
+            constraintName: fk_multas_usuario
+            onDelete: RESTRICT
+
+  # -----------------------------------------------------------------------------
+  # 003 - anexos_multa
+  # -----------------------------------------------------------------------------
+  - changeSet:
+      id: 3-anexos-multa-base
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: anexos_multa
+      changes:
+        - createTable:
+            tableName: anexos_multa
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: multa_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome_original
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content_type
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tamanho_bytes
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dados
+                  type: blob
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enviado_em
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: anexos_multa
+            baseColumnNames: multa_id
+            referencedTableName: multas
+            referencedColumnNames: id
+            constraintName: fk_anexos_multa
+            onDelete: CASCADE
+
+  # -----------------------------------------------------------------------------
+  # 004 - votos_revisao
+  # -----------------------------------------------------------------------------
+  - changeSet:
+      id: 4-votos-revisao-base
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: votos_revisao
+      changes:
+        - createTable:
+            tableName: votos_revisao
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: revisor_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: multa_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: decisao
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: score_revisor_no_momento
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peso_do_voto
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: votado_em
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feedback_aplicado
+                  type: boolean
+              - column:
+                  name: delta_score
+                  type: int
+            uniqueConstraints:
+              - columnNames: revisor_id,multa_id
+                constraintName: uk_votos_revisao_revisor_multa
+        - addForeignKeyConstraint:
+            baseTableName: votos_revisao
+            baseColumnNames: revisor_id
+            referencedTableName: usuarios
+            referencedColumnNames: id
+            constraintName: fk_votos_revisor
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: votos_revisao
+            baseColumnNames: multa_id
+            referencedTableName: multas
+            referencedColumnNames: id
+            constraintName: fk_votos_multaCaso
+            onDelete: CASCADE
+
+  # -----------------------------------------------------------------------------
+  # 005 - historico_score
+  # -----------------------------------------------------------------------------
+  - changeSet:
+      id: 5-historico-score-base
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          not:
+            tableExists:
+              tableName: historico_score
+      changes:
+        - createTable:
+            tableName: historico_score
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: usuario_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: delta_score
+                  type: int
+              - column:
+                  name: score_antes
+                  type: int
+              - column:
+                  name: score_depois
+                  type: int
+              - column:
+                  name: motivo
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: multa_id
+                  type: bigint
+              - column:
+                  name: registrado_em
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: historico_score
+            baseColumnNames: usuario_id
+            referencedTableName: usuarios
+            referencedColumnNames: id
+            constraintName: fk_historico_usuario
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: historico_score
+            baseColumnNames: multa_id
+            referencedTableName: multas
+            referencedColumnNames: id
+            constraintName: fk_historico_multa
+            onDelete: SET NULL

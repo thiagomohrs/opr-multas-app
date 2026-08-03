@@ -1,5 +1,6 @@
 package com.opr.multas.controller;
 
+import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.AnexoMulta;
 import com.opr.multas.model.Multa;
 import com.opr.multas.service.MultaService;
@@ -27,6 +28,7 @@ public class MultaController {
 
     private final MultaService multaService;
     private final UsuarioService usuarioService;
+    private final LinkFacade linkFacade;
 
     @GetMapping
     public String listar(@RequestParam(required = false) String placa, Model model) {
@@ -37,12 +39,14 @@ public class MultaController {
         model.addAttribute("multas", multas);
         model.addAttribute("searchPlaca", placa);
         model.addAttribute("statusValues", Multa.StatusMulta.values());
+        model.addAttribute("links", linkFacade.multas());
         return "multas/list";
     }
 
     @GetMapping("/{id}")
     public String detalhe(@PathVariable Long id, Model model) {
         model.addAttribute("multa", multaService.buscarEntidadePorId(id));
+        model.addAttribute("links", linkFacade.multa(id));
         return "multas/detalhe";
     }
 

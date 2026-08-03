@@ -1,5 +1,6 @@
 package com.opr.multas.service;
 
+import com.opr.multas.config.CacheConfig;
 import com.opr.multas.config.ModeracaoProperties;
 import com.opr.multas.model.DecisaoVoto;
 import com.opr.multas.model.MotivoScore;
@@ -7,15 +8,19 @@ import com.opr.multas.model.Multa;
 import com.opr.multas.model.StatusModeracaoMulta;
 import com.opr.multas.model.Usuario;
 import com.opr.multas.model.VotoRevisao;
+import com.opr.multas.model.dto.MultaDto;
 import com.opr.multas.repository.MultaRepository;
 import com.opr.multas.repository.VotoRevisaoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -28,6 +33,7 @@ public class ModeracaoService {
     private final ModeracaoProperties props;
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void registrarVoto(Long multaId, Usuario revisor, DecisaoVoto decisao) {
         Multa multa = multaRepository.findById(multaId)
             .orElseThrow(() -> new IllegalArgumentException("Caso não encontrado: " + multaId));
@@ -67,6 +73,7 @@ public class ModeracaoService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void resolverCaso(Multa multa) {
         double totalPeso = multa.getPesoVotosAFavor() + multa.getPesoVotosContra();
         double ratioFavor = totalPeso == 0 ? 0 : multa.getPesoVotosAFavor() / totalPeso;
@@ -83,6 +90,7 @@ public class ModeracaoService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void expirarCaso(Multa multa) {
         if (multa.getStatusModeracao() == StatusModeracaoMulta.AGUARDANDO_REVISAO
             || multa.getStatusModeracao() == StatusModeracaoMulta.EM_VOTACAO) {
@@ -93,6 +101,7 @@ public class ModeracaoService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void flagCasoMalicioso(Long multaId) {
         Multa multa = multaRepository.findById(multaId)
             .orElseThrow(() -> new IllegalArgumentException("Caso não encontrado: " + multaId));
@@ -172,23 +181,41 @@ public class ModeracaoService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Multa buscarCasoPorId(Long id) {
-        return multaRepository.findById(id)
+        Multa multa = multaRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Caso não encontrado: " + id));
+        // Inicializa a coleção de anexos dentro da transação (open-in-view desativado).
+        multa.getAnexos().size();
+        return multa;
     }
 
-    public List<Multa> listarFilaRevisao() {
-        return multaRepository.findByStatusModeracaoInOrderByPrazoRevisaoAsc(
-            List.of(StatusModeracaoMulta.AGUARDANDO_REVISAO, StatusModeracaoMulta.EM_VOTACAO));
+    @Cacheable(cacheNames = CacheConfig.CACHE_FILA_REVISAO)
+    public List<MultaDto> listarFilaRevisao() {
+        return lerLista(multaRepository.findByStatusModeracaoInOrderByPrazoRevisaoAsc(
+            List.of(StatusModeracaoMulta.AGUARDANDO_REVISAO, StatusModeracaoMulta.EM_VOTACAO)));
     }
 
-    public List<Multa> listarCasosResolvidos() {
-        return multaRepository.findByStatusModeracaoInOrderByIdDesc(
-            List.of(StatusModeracaoMulta.APROVADA, StatusModeracaoMulta.REJEITADA, StatusModeracaoMulta.EXPIRADA));
+    @Cacheable(cacheNames = CacheConfig.CACHE_CASOS_RESOLVIDOS)
+    public List<MultaDto> listarCasosResolvidos() {
+        return lerLista(multaRepository.findByStatusModeracaoInOrderByIdDesc(
+            List.of(StatusModeracaoMulta.APROVADA, StatusModeracaoMulta.REJEITADA, StatusModeracaoMulta.EXPIRADA)));
     }
 
-    public List<Multa> listarTodosCasos() {
-        return multaRepository.findByStatusModeracaoInOrderByIdDesc(
-            List.of(StatusModeracaoMulta.values()));
+    @Cacheable(cacheNames = CacheConfig.CACHE_MODERACAO_CASOS)
+    public List<MultaDto> listarTodosCasos() {
+        return lerLista(multaRepository.findByStatusModeracaoInOrderByIdDesc(
+            List.of(StatusModeracaoMulta.values())));
+    }
+
+    /** Monta DTOs com contadores agregados em lote (evita o N+1 do @Formula). */
+    private List<MultaDto> lerLista(List<Multa> entidades) {
+        if (entidades.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = entidades.stream().map(Multa::getId).toList();
+        Map<Long, Long> votos = MultaDto.countMap(multaRepository.countVotosPorMultaIdIn(ids));
+        Map<Long, Long> anexos = MultaDto.countMap(multaRepository.countAnexosPorMultaIdIn(ids));
+        return MultaDto.fromList(entidades, votos, anexos);
     }
 }

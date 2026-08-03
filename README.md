@@ -8,6 +8,7 @@ Sistema full-stack em um único projeto **Spring Boot 3 (Java 21) + Thymeleaf**,
 - **Spring Boot 3.2.0** (Web MVC + Thymeleaf)
 - **Spring Security** (form login + OAuth2 Client)
 - **Spring Data JPA**
+- **Spring Cache** (`@Cacheable`/`@CacheEvict`) com **Redis (Upstash/Vercel KV)** em produção e **Caffeine** em dev
 - **H2 Database** (desenvolvimento) / **PostgreSQL** (produção)
 - **Lombok**
 - **Maven**
@@ -127,6 +128,36 @@ opr.score.voto-malicioso-revisor=-15
 
 - `GET /api/health` é público e responde `{"status":"UP"}` — usado para verificar se a aplicação subiu (ex.: no deploy da Vercel).
 
+## ⚡ Cache de consultas (Redis / Caffeine)
+
+Os dashboards de **multas**, **fila de revisão**, **casos resolvidos** e **moderação** consultam o banco a cada requisição. Para reduzir carga/repetição, esses resultados são cacheados:
+
+| Cache (`CacheConfig`) | Método | Invalidado em |
+|---|---|---|
+| `multas` | `MultaService.listarTodas()` | criar/atualizar/deletar/remover anexo |
+| `filaRevisao` | `ModeracaoService.listarFilaRevisao()` | registrar voto/resolver/expirar/flag |
+| `casosResolvidos` | `ModeracaoService.listarCasosResolvidos()` | registrar voto/resolver/expirar/flag |
+| `moderacaoCasos` | `ModeracaoService.listarTodosCasos()` | registrar voto/resolver/expirar/flag |
+
+**O que é cacheado:** apenas **DTOs** (`MultaDto`/`UsuarioDto`) serializáveis — nunca entidades JPA (evita lazy-loading e `LazyInitializationException` com `open-in-view=false`). Os DTOs espelham os getters usados pelas templates, então **nenhuma view precisa mudar**.
+
+**Seleção automática (`CacheConfig`):**
+
+- Se `REDIS_URL` estiver definida → **Redis/Upstash** (`RedisCacheManager` + serialização JSON com suporte a `LocalDateTime`, `BigDecimal` e enums; TLS ativo para `rediss://` ou hosts `.upstash.io`).
+- Se `REDIS_URL` ausente → **Caffeine** em memória (dev/local).
+
+Um `CacheErrorHandler` customizado garante que **falhas de cache nunca geram erro/500**: o caso cai numa leitura normal do banco (basta um `GET`/`PUT` falhar) e, se uma invalidação falhar, o `TTL` cobre a consistência.
+
+**Configuração:**
+
+```properties
+app.cache.redis-url=${REDIS_URL:}   # se vazio -> Caffeine
+app.cache.ttl=30s
+app.cache.max-size=10000
+```
+
+> **Importante:** a Upstash exige TLS mesmo com link `redis://`. O `CacheConfig` detecta por `rediss` ou host `.upstash` e liga SSL automaticamente — use a URL inteira fornecida no painel (ex. `redis://default:TOKEN@xxx.upstash.io:6379`).
+
 ## 🗄️ Banco de Dados
 
 H2 em memória por padrão (dados são perdidos ao reiniciar). Para PostgreSQL em produção, ative o perfil `prod` (driver e dialeto são detectados automaticamente):
@@ -174,6 +205,7 @@ Configure no dashboard (Project Settings → Environment Variables) ou via `verc
 | `DATABASE_URL` | Se `prod` | URL do PostgreSQL: `postgresql://...` (Supabase) ou `jdbc:postgresql://...` |
 | `DATABASE_USER` | Se `prod` | Usuário do banco (opcional se a URL tiver credenciais) |
 | `DATABASE_PASSWORD` | Se `prod` | Senha do banco (opcional se a URL tiver credenciais) |
+| `REDIS_URL` | Não | URL do Redis/Upstash (`redis://default:TOKEN@host:6379`). Se ausente, usa cache em memória (Caffeine) |
 | `OPR_SEED_ADMIN_SENHA` | Não | Senha do usuário `admin` criado pelo seed (default `admin123`) |
 | `OPR_SEED_USER_SENHA` | Não | Senha do usuário `user` criado pelo seed (default `user123`) |
 | `OPR_SEED_REVISOR_SENHA` | Não | Senha dos revisores `revisor`, `revisor2`, `revisor3` (default `revisor123`) |
