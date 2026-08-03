@@ -334,7 +334,7 @@ databaseChangeLog:
               - column:
                   name: multa_id
                   type: bigint
-              - column:
+- column:
                   name: registrado_em
                   type: timestamp
                   constraints:
@@ -353,3 +353,29 @@ databaseChangeLog:
             referencedColumnNames: id
             constraintName: fk_historico_multa
             onDelete: SET NULL
+
+  # -----------------------------------------------------------------------------
+  # 006 - anexos_multa.s3_key
+  # OPCIONAL/INERTE: só é usado quando app.storage.type=s3 (integração AWS S3 ativada).
+  # Como o default é 'database', este changeset não é obrigatório em produção atual.
+  # Guardado por columnDoesNotExist (idempotente em banco já migrado).
+  # -----------------------------------------------------------------------------
+  - changeSet:
+      id: 6-anexos-s3-key
+      author: opr-app
+      preConditions:
+        - onFail: MARK_RAN
+          and:
+            - tableExists:
+                tableName: anexos_multa
+            - not:
+                columnExists:
+                  tableName: anexos_multa
+                  columnName: s3_key
+      changes:
+        - addColumn:
+            tableName: anexos_multa
+            columns:
+              - column:
+                  name: s3_key
+                  type: varchar(255)

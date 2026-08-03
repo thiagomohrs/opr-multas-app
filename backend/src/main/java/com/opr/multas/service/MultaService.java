@@ -35,6 +35,7 @@ public class MultaService {
     private final MultaRepository multaRepository;
     private final ModeracaoProperties props;
     private final FilaRevisaoService filaRevisaoService;
+    private final com.opr.multas.storage.AnexoStorage anexoStorage;
 
     @org.springframework.beans.factory.annotation.Value("${app.prazo-vencimento-dias:90}")
     private int prazoVencimentoDias;
@@ -125,14 +126,22 @@ public class MultaService {
             .orElseThrow(() -> new IllegalArgumentException("Anexo não encontrado: " + anexoId));
     }
 
+    /** Conteúdo em bytes do anexo, conforme o armazenamento ativo (DB ou S3). */
+    @Transactional(readOnly = true)
+    public byte[] lerConteudoAnexo(Long multaId, Long anexoId) {
+        return anexoStorage.obter(buscarAnexo(multaId, anexoId));
+    }
+
     @Transactional
     @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public void removerAnexo(Long multaId, Long anexoId) {
         Multa multa = buscarEntidadePorId(multaId);
-        boolean removido = multa.getAnexos().removeIf(anexo -> anexo.getId().equals(anexoId));
-        if (!removido) {
-            throw new IllegalArgumentException("Anexo não encontrado: " + anexoId);
-        }
+        AnexoMulta anexo = multa.getAnexos().stream()
+            .filter(a -> a.getId().equals(anexoId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Anexo não encontrado: " + anexoId));
+        anexoStorage.remover(anexo);
+        multa.getAnexos().remove(anexo);
         multaRepository.save(multa);
         log.info("Anexo {} removido da multa {}", anexoId, multaId);
     }
@@ -157,6 +166,7 @@ public class MultaService {
             } catch (IOException ex) {
                 throw new IllegalStateException("Falha ao ler o arquivo enviado.", ex);
             }
+            anexoStorage.armazenar(anexo);
             multa.getAnexos().add(anexo);
         }
     }

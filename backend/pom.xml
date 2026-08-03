@@ -157,25 +157,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
+    <!-- AWS S3 SDK v2: permite compilar a integração de storage. Os beans S3
+             (cliente + storage) SÓ são criados com app.storage.type=s3 (default é
+             'database'), então em produção atual nada do S3 é instanciado no boot
+             (sem overhead de runtime). O SDK existe para o código compilar sempre. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.25.40</version>
+        </dependency>
     </dependencies>
-
-    <!-- AWS S3 (imagens/vídeos em bucket) fica em um profile Maven INATIVO por padrão.
-         A integração não deve inflar o cold-start (budget apertado no Vercel) enquanto
-         estiver desligada. Para ativar: build com -Ps3 e defina app.storage.type=s3
-         (plus/credentials em app.storage.s3). Também adicione o changeset 's3_key' do
-         Liquibase (006) na base de destino. -->
-    <profiles>
-        <profile>
-            <id>s3</id>
-            <dependencies>
-                <dependency>
-                    <groupId>software.amazon.awssdk</groupId>
-                    <artifactId>s3</artifactId>
-                    <version>2.25.40</version>
-                </dependency>
-            </dependencies>
-        </profile>
-    </profiles>
     
     <build>
         <plugins>

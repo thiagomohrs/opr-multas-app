@@ -56,13 +56,20 @@
 
                     <div class="form-group">
                         <label for="tipo">Tipo *</label>
-                        <input id="tipo"
-                               th:field="*{tipo}"
-                               type="text"
-                               class="form-control"
-                               th:classappend="${#fields.hasErrors('tipo')} ? 'is-invalid'"
-                               placeholder="Ex: Velocidade, Semáforo..."
-                               required/>
+                        <select id="tipo"
+                                th:field="*{tipo}"
+                                class="form-control"
+                                th:classappend="${#fields.hasErrors('tipo')} ? 'is-invalid'"
+                                required>
+                            <option value="">Selecione o tipo de infração…</option>
+                            <!-- Se for edição e o tipo atual não estiver no catálogo, mantém o valor salvo -->
+                            <option th:if="${isEdit and !#lists.contains(tipos.![nome], multa.tipo)}"
+                                    th:value="${multa.tipo}"
+                                    th:text="${multa.tipo}">Tipo atual</option>
+                            <option th:each="t : ${tipos}"
+                                    th:value="${t.nome}"
+                                    th:text="${t.nome}">Tipo</option>
+                        </select>
                         <div class="invalid-feedback" th:if="${#fields.hasErrors('tipo')}"
                              th:errors="*{tipo}">Erro tipo</div>
                     </div>
@@ -176,5 +183,30 @@
     </div>
 
 </main>
+
+<script th:inline="javascript">
+    /* Valores-base por tipo de infração (um mapa nome -> valor). */
+    const VALORES_TIPO = {
+        /*[# th:each="t : ${tipos}"]*/
+        "/*[(${t.nome})]*/": /*[(${t.valorBase})]*/,
+        /*[/]*/
+    };
+
+    function preencherValor() {
+        const tipo = document.getElementById('tipo');
+        const valor = document.getElementById('valor');
+        if (!tipo || !valor) return;
+        const v = VALORES_TIPO[tipo.value];
+        if (v !== undefined) {
+            valor.value = Number(v).toFixed(2);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const tipo = document.getElementById('tipo');
+        if (tipo) tipo.addEventListener('change', preencherValor);
+    });
+</script>
+
 </body>
 </html>

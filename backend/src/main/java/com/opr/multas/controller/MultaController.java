@@ -3,6 +3,7 @@ package com.opr.multas.controller;
 import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.AnexoMulta;
 import com.opr.multas.model.Multa;
+import com.opr.multas.model.TipoInfracao;
 import com.opr.multas.service.MultaService;
 import com.opr.multas.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -54,6 +55,7 @@ public class MultaController {
     @PreAuthorize("hasRole('ADMIN')")
     public String novoForm(Model model) {
         model.addAttribute("multa", new Multa());
+        model.addAttribute("tipos", TipoInfracao.TODOS);
         model.addAttribute("statusValues", Multa.StatusMulta.values());
         model.addAttribute("isEdit", false);
         return "multas/form";
@@ -65,6 +67,7 @@ public class MultaController {
                         @RequestParam(value = "arquivos", required = false) MultipartFile[] arquivos,
                         Model model, Authentication authentication, RedirectAttributes redirectAttrs) {
         if (result.hasErrors()) {
+            model.addAttribute("tipos", TipoInfracao.TODOS);
             model.addAttribute("statusValues", Multa.StatusMulta.values());
             model.addAttribute("isEdit", false);
             return "multas/form";
@@ -73,6 +76,7 @@ public class MultaController {
             multaService.criar(multa, usuarioService.getCurrentUsuario(authentication), arquivos);
         } catch (IllegalArgumentException ex) {
             model.addAttribute("errorMessage", ex.getMessage());
+            model.addAttribute("tipos", TipoInfracao.TODOS);
             model.addAttribute("statusValues", Multa.StatusMulta.values());
             model.addAttribute("isEdit", false);
             return "multas/form";
@@ -85,6 +89,7 @@ public class MultaController {
     @PreAuthorize("hasRole('ADMIN')")
     public String editarForm(@PathVariable Long id, Model model) {
         model.addAttribute("multa", multaService.buscarEntidadePorId(id));
+        model.addAttribute("tipos", TipoInfracao.TODOS);
         model.addAttribute("statusValues", Multa.StatusMulta.values());
         model.addAttribute("isEdit", true);
         return "multas/form";
@@ -98,6 +103,7 @@ public class MultaController {
                             Model model, RedirectAttributes redirectAttrs) {
         if (result.hasErrors()) {
             multa.setAnexos(multaService.buscarEntidadePorId(id).getAnexos());
+            model.addAttribute("tipos", TipoInfracao.TODOS);
             model.addAttribute("statusValues", Multa.StatusMulta.values());
             model.addAttribute("isEdit", true);
             return "multas/form";
@@ -107,6 +113,7 @@ public class MultaController {
         } catch (IllegalArgumentException ex) {
             multa.setAnexos(multaService.buscarEntidadePorId(id).getAnexos());
             model.addAttribute("errorMessage", ex.getMessage());
+            model.addAttribute("tipos", TipoInfracao.TODOS);
             model.addAttribute("statusValues", Multa.StatusMulta.values());
             model.addAttribute("isEdit", true);
             return "multas/form";
@@ -139,11 +146,12 @@ public class MultaController {
     public ResponseEntity<byte[]> anexo(@PathVariable Long id, @PathVariable Long anexoId) {
         try {
             AnexoMulta anexo = multaService.buscarAnexo(id, anexoId);
+            byte[] conteudo = multaService.lerConteudoAnexo(id, anexoId);
             return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(anexo.getContentType()))
-                .contentLength(anexo.getTamanhoBytes())
+                .contentLength(conteudo != null ? conteudo.length : 0)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
-                .body(anexo.getDados());
+                .body(conteudo);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.notFound().build();
         }
