@@ -64,7 +64,7 @@ public class Multa {
     @Column(nullable = false)
     private Integer votosNecessarios = 3;
 
-    @Column(name = "peso_votos_a_favor", nullable = false)
+    @Column(name = "peso_votosafavor", nullable = false)
     private Double pesoVotosAFavor = 0.0;
 
     @Column(name = "peso_votos_contra", nullable = false)

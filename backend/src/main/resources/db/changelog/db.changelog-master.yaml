@@ -132,7 +132,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: peso_votos_a_favor
+                  name: peso_votosafavor
                   type: double
                   constraints:
                     nullable: false
