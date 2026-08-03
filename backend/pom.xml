@@ -157,17 +157,25 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
-
-        <!-- AWS S3 SDK v2 (opcional): usado APENAS quando app.storage.type=s3. A integração
-             S3 (imagens/vídeos em bucket) fica desativada por padrão (app.storage.type=database).
-             Como a dependência é <optional>, o jar não entra no cold-start em DB mode. -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
-            <version>2.25.40</version>
-            <optional>true</optional>
-        </dependency>
     </dependencies>
+
+    <!-- AWS S3 (imagens/vídeos em bucket) fica em um profile Maven INATIVO por padrão.
+         A integração não deve inflar o cold-start (budget apertado no Vercel) enquanto
+         estiver desligada. Para ativar: build com -Ps3 e defina app.storage.type=s3
+         (plus/credentials em app.storage.s3). Também adicione o changeset 's3_key' do
+         Liquibase (006) na base de destino. -->
+    <profiles>
+        <profile>
+            <id>s3</id>
+            <dependencies>
+                <dependency>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>s3</artifactId>
+                    <version>2.25.40</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
     
     <build>
         <plugins>
