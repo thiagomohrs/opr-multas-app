@@ -18,25 +18,40 @@
 
     <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
     <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+    <div class="alert alert-info" th:if="${infoMessage}" th:text="${infoMessage}"></div>
 
     <div class="card">
         <div class="card-header">
             <h1>🛡️ Fila de Revisão</h1>
-            <a th:href="@{/meu-score}" class="btn btn-outline">⭐ Meu Score</a>
+            <div class="header-actions">
+                <form th:action="@{/revisao/proximo}" method="post"
+                      sec:authorize="not hasRole('ADMIN')">
+                    <button type="submit" class="btn btn-primary">▶ Buscar próximo caso</button>
+                </form>
+                <a th:href="@{/meu-score}" class="btn btn-outline">⭐ Meu Score</a>
+            </div>
         </div>
 
         <div class="card-body">
             <p class="text-muted">
-                Casos aguardando moderação. Quórum necessário:
-                <strong th:text="${votosNecessarios}">3</strong> votos.
+                Casos aguardando moderação. O sistema entrega o próximo caso automaticamente — o
+                revisor não escolhe qual analisar.
             </p>
 
-            <div class="empty-state" th:if="${fila.isEmpty()}">
+            <form th:action="@{/revisao/proximo}" method="post"
+                  sec:authorize="hasRole('ADMIN') or @moderacaoAccess.isRevisor()">
+                <button type="submit" class="btn btn-primary btn-block"
+                        th:if="${filaVazia} or ${fila.isEmpty()}">
+                    ▶ Se nenhum caso apareceu, busque o próximo disponível
+                </button>
+            </form>
+
+            <div class="empty-state" th:if="${filaVazia} or ${fila.isEmpty()}">
                 <div class="icon">🎉</div>
                 <p>Nenhum caso pendente de revisão no momento.</p>
             </div>
 
-            <div class="table-responsive" th:unless="${fila.isEmpty()}">
+            <div class="table-responsive" th:unless="${filaVazia or fila.isEmpty()}">
                 <table class="table">
                     <thead>
                     <tr>
@@ -48,7 +63,7 @@
                         <th>Status</th>
                         <th>Votos</th>
                         <th>Prazo</th>
-                        <th>Ação</th>
+                        <th sec:authorize="hasRole('ADMIN')">Ação</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -68,7 +83,7 @@
                             <span class="text-muted" th:text="'/' + ${caso.votosNecessarios}">/3</span>
                         </td>
                         <td th:text="${caso.prazoRevisao != null ? #temporals.format(caso.prazoRevisao, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
-                        <td>
+                        <td sec:authorize="hasRole('ADMIN')">
                             <a th:href="@{/revisao/{id}(id=${caso.id})}" class="btn btn-primary btn-sm">Revisar</a>
                         </td>
                     </tr>

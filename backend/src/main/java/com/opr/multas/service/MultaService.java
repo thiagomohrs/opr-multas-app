@@ -34,6 +34,10 @@ public class MultaService {
 
     private final MultaRepository multaRepository;
     private final ModeracaoProperties props;
+    private final FilaRevisaoService filaRevisaoService;
+
+    @org.springframework.beans.factory.annotation.Value("${app.prazo-vencimento-dias:90}")
+    private int prazoVencimentoDias;
 
     @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS)
     public List<MultaDto> listarTodas() {
@@ -72,11 +76,19 @@ public class MultaService {
     @Transactional
     @CacheEvict(cacheNames = {CacheConfig.CACHE_MULTAS, CacheConfig.CACHE_FILA_REVISAO, CacheConfig.CACHE_CASOS_RESOLVIDOS, CacheConfig.CACHE_MODERACAO_CASOS}, allEntries = true)
     public Multa criar(Multa multa, Usuario solicitante, MultipartFile[] arquivos) {
+        // Toda nova multa nasce como PENDENTE e segue para a fila de revisão.
+        multa.setStatus(Multa.StatusMulta.PENDENTE);
+        // Vencimento sempre = data de criação + X dias.
+        multa.setDataVencimento(LocalDateTime.now().plusDays(prazoVencimentoDias));
         aplicarDefaultsModeracao(multa);
         multa.setUsuario(solicitante);
         anexarArquivos(multa, arquivos);
         log.info("Criando multa para placa: {}", multa.getPlaca());
-        return multaRepository.save(multa);
+        Multa salva = multaRepository.save(multa);
+        if (salva.getStatusModeracao() == StatusModeracaoMulta.AGUARDANDO_REVISAO) {
+            filaRevisaoService.publicar(salva.getId());
+        }
+        return salva;
     }
 
     @Transactional

@@ -141,13 +141,31 @@
             <artifactId>spring-boot-starter-hateoas</artifactId>
         </dependency>
 
-        <!-- Spring Session JDBC: sessão persistida no Postgres. No Vercel (Fluid Compute)
+<!-- Spring Session JDBC: sessão persistida no Postgres. No Vercel (Fluid Compute)
              o container escala a zero entre requests, e a sessão em memória (default)
              se perde -> login volta a cair. Com store-type=jdbc a sessão fica no banco
              e sobrevive ao scale-to-zero. Usado apenas no perfil prod (dev segue em memória). -->
         <dependency>
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+
+<!-- Spring AMQP (RabbitMQ): fi/la de revisão. Os revisores não escolhem qual caso
+             analisar; a fila 'fila_revisao' entrega o próximo caso. Usado em produção
+             (RABBITMQ_URL definida); em dev fica inativo e cai para seleção por banco. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- AWS S3 SDK v2 (opcional): usado APENAS quando app.storage.type=s3. A integração
+             S3 (imagens/vídeos em bucket) fica desativada por padrão (app.storage.type=database).
+             Como a dependência é <optional>, o jar não entra no cold-start em DB mode. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.25.40</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
     

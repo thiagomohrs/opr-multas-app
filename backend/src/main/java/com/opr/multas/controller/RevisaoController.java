@@ -7,6 +7,7 @@ import com.opr.multas.model.Multa;
 import com.opr.multas.model.Usuario;
 import com.opr.multas.model.VotoRevisao;
 import com.opr.multas.repository.VotoRevisaoRepository;
+import com.opr.multas.service.FilaRevisaoService;
 import com.opr.multas.service.ModeracaoService;
 import com.opr.multas.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -27,14 +28,39 @@ public class RevisaoController {
     private final UsuarioService usuarioService;
     private final ModeracaoProperties props;
     private final LinkFacade linkFacade;
+    private final FilaRevisaoService filaRevisaoService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or @moderacaoAccess.isRevisor()")
-    public String fila(Model model) {
+    public String fila(Model model, Authentication authentication) {
+        Usuario revisor = usuarioService.getCurrentUsuario(authentication);
+        if (revisor != null) {
+            Long proximo = filaRevisaoService.proximoCaso(revisor);
+            if (proximo != null) {
+                return "redirect:/revisao/" + proximo;
+            }
+        }
+        // Sem casos na fila (ou sem usuário identificado): apenas a visão do administrador.
+        model.addAttribute("filaVazia", true);
         model.addAttribute("fila", moderacaoService.listarFilaRevisao());
         model.addAttribute("resolvidos", moderacaoService.listarCasosResolvidos());
         model.addAttribute("links", linkFacade.filaRevisao());
         return "revisao/fila";
+    }
+
+    @PostMapping("/proximo")
+    @PreAuthorize("hasRole('ADMIN') or @moderacaoAccess.isRevisor()")
+    public String proximo(Authentication authentication, RedirectAttributes redirectAttrs) {
+        Usuario revisor = usuarioService.getCurrentUsuario(authentication);
+        if (revisor == null) {
+            return "redirect:/login";
+        }
+        Long proximo = filaRevisaoService.proximoCaso(revisor);
+        if (proximo == null) {
+            redirectAttrs.addFlashAttribute("infoMessage", "Nenhum caso disponível para revisão no momento.");
+            return "redirect:/revisao";
+        }
+        return "redirect:/revisao/" + proximo;
     }
 
     @GetMapping("/{id}")
@@ -72,6 +98,7 @@ public class RevisaoController {
         }
         try {
             moderacaoService.registrarVoto(id, revisor, decisao);
+            filaRevisaoService.devolverSeAberto(id);
             redirectAttrs.addFlashAttribute("successMessage", "Voto registrado com sucesso!");
         } catch (RuntimeException ex) {
             redirectAttrs.addFlashAttribute("errorMessage", ex.getMessage());
