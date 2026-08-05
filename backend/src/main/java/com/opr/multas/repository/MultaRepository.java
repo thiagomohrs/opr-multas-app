@@ -20,6 +20,12 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
     List<Multa> findByStatusModeracaoIn(List<StatusModeracaoMulta> statuses);
     List<Multa> findByStatusModeracaoInOrderByPrazoRevisaoAsc(List<StatusModeracaoMulta> statuses);
     List<Multa> findByStatusModeracaoInOrderByIdDesc(List<StatusModeracaoMulta> statuses);
+    List<Multa> findByUsuarioIdOrderByIdDesc(Long usuarioId);
+    List<Multa> findByUsuarioIdAndPlacaContainingIgnoreCaseOrderByIdDesc(Long usuarioId, String placa);
+
+    /** Contagem de casos por status de moderação (dashboard). */
+    @Query("select m.statusModeracao, count(m) from Multa m group by m.statusModeracao")
+    List<Object[]> countAgrupadoPorStatusModeracao();
 
     /**
      * Expira num único UPDATE todos os casos ainda abertos cujo prazo de revisão já venceu.

@@ -334,7 +334,7 @@ databaseChangeLog:
               - column:
                   name: multa_id
                   type: bigint
-- column:
+              - column:
                   name: registrado_em
                   type: timestamp
                   constraints:

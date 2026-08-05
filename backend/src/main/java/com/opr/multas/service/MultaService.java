@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +49,30 @@ public class MultaService {
     @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS)
     public List<MultaDto> listarPorPlaca(String placa) {
         return lerLista(multaRepository.findByPlacaContainingIgnoreCase(placa));
+    }
+
+    @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS, key = "'por-usuario:' + #usuarioId")
+    public List<MultaDto> listarPorUsuario(Long usuarioId) {
+        return lerLista(multaRepository.findByUsuarioIdOrderByIdDesc(usuarioId));
+    }
+
+    @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS, key = "'por-usuario-placa:' + #usuarioId + ':' + #placa")
+    public List<MultaDto> listarPorUsuarioEPlaca(Long usuarioId, String placa) {
+        return lerLista(multaRepository.findByUsuarioIdAndPlacaContainingIgnoreCaseOrderByIdDesc(usuarioId, placa));
+    }
+
+    /** Contagem de casos por status de moderação (dashboard da listagem). */
+    @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS, key = "'dashboard'")
+    public Map<StatusModeracaoMulta, Long> contarPorStatusModeracao() {
+        Map<StatusModeracaoMulta, Long> mapa = new EnumMap<>(StatusModeracaoMulta.class);
+        for (StatusModeracaoMulta status : StatusModeracaoMulta.values()) {
+            mapa.put(status, 0L);
+        }
+        for (Object[] linha : multaRepository.countAgrupadoPorStatusModeracao()) {
+            StatusModeracaoMulta status = (StatusModeracaoMulta) linha[0];
+            mapa.put(status, ((Number) linha[1]).longValue());
+        }
+        return mapa;
     }
 
     /**
@@ -81,7 +106,14 @@ public class MultaService {
         multa.setStatus(Multa.StatusMulta.PENDENTE);
         // Vencimento sempre = data de criação + X dias.
         multa.setDataVencimento(LocalDateTime.now().plusDays(prazoVencimentoDias));
-        aplicarDefaultsModeracao(multa);
+        // Campos de moderação são controlados pelo sistema (nunca aceitos do cliente),
+        // evitando mass-assignment via POST manipulado.
+        multa.setStatusModeracao(StatusModeracaoMulta.AGUARDANDO_REVISAO);
+        multa.setVotosNecessarios(props.getModeracao().getVotosNecessarios());
+        multa.setPesoVotosAFavor(0.0);
+        multa.setPesoVotosContra(0.0);
+        multa.setPrazoRevisao(LocalDateTime.now().plusHours(props.getModeracao().getPrazoRevisaoHoras()));
+        multa.setMaliciosa(false);
         multa.setUsuario(solicitante);
         anexarArquivos(multa, arquivos);
         log.info("Criando multa para placa: {}", multa.getPlaca());
@@ -193,23 +225,5 @@ public class MultaService {
             return "";
         }
         return nome.substring(nome.lastIndexOf('.') + 1).toLowerCase();
-    }
-
-    private void aplicarDefaultsModeracao(Multa multa) {
-        if (multa.getStatusModeracao() == null) {
-            multa.setStatusModeracao(StatusModeracaoMulta.AGUARDANDO_REVISAO);
-        }
-        if (multa.getVotosNecessarios() == null) {
-            multa.setVotosNecessarios(props.getModeracao().getVotosNecessarios());
-        }
-        if (multa.getPrazoRevisao() == null) {
-            multa.setPrazoRevisao(LocalDateTime.now().plusHours(props.getModeracao().getPrazoRevisaoHoras()));
-        }
-        if (multa.getPesoVotosAFavor() == null) {
-            multa.setPesoVotosAFavor(0.0);
-        }
-        if (multa.getPesoVotosContra() == null) {
-            multa.setPesoVotosContra(0.0);
-        }
     }
 }

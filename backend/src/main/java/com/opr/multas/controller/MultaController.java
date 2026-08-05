@@ -1,9 +1,10 @@
 package com.opr.multas.controller;
 
-import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.AnexoMulta;
 import com.opr.multas.model.Multa;
 import com.opr.multas.model.TipoInfracao;
+import com.opr.multas.model.Usuario;
+import com.opr.multas.model.dto.MultaDto;
 import com.opr.multas.service.MultaService;
 import com.opr.multas.service.UsuarioService;
 import jakarta.validation.Valid;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
+
 @Slf4j
 @Controller
 @RequestMapping("/multas")
@@ -29,30 +32,44 @@ public class MultaController {
 
     private final MultaService multaService;
     private final UsuarioService usuarioService;
-    private final LinkFacade linkFacade;
 
     @GetMapping
-    public String listar(@RequestParam(required = false) String placa, Model model) {
-        var multas = (placa != null && !placa.isBlank())
-            ? multaService.listarPorPlaca(placa)
-            : multaService.listarTodas();
+    public String listar(@RequestParam(required = false) String placa, Model model,
+                         Authentication authentication) {
+        Usuario currentUser = usuarioService.getCurrentUsuario(authentication);
+        boolean isAdmin = currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole());
+        boolean temBusca = placa != null && !placa.isBlank();
+
+        List<MultaDto> multas;
+        if (isAdmin) {
+            // ADMIN enxerga todos os casos.
+            multas = temBusca
+                ? multaService.listarPorPlaca(placa)
+                : multaService.listarTodas();
+        } else if (currentUser != null) {
+            // Usuário comum: apenas os casos que ele mesmo criou.
+            multas = temBusca
+                ? multaService.listarPorUsuarioEPlaca(currentUser.getId(), placa)
+                : multaService.listarPorUsuario(currentUser.getId());
+        } else {
+            multas = List.of();
+        }
 
         model.addAttribute("multas", multas);
         model.addAttribute("searchPlaca", placa);
         model.addAttribute("statusValues", Multa.StatusMulta.values());
-        model.addAttribute("links", linkFacade.multas());
+        model.addAttribute("stats", multaService.contarPorStatusModeracao());
+        model.addAttribute("isAdmin", isAdmin);
         return "multas/list";
     }
 
     @GetMapping("/{id}")
     public String detalhe(@PathVariable Long id, Model model) {
         model.addAttribute("multa", multaService.buscarEntidadePorId(id));
-        model.addAttribute("links", linkFacade.multa(id));
         return "multas/detalhe";
     }
 
     @GetMapping("/novo")
-    @PreAuthorize("hasRole('ADMIN')")
     public String novoForm(Model model) {
         model.addAttribute("multa", new Multa());
         model.addAttribute("tipos", TipoInfracao.TODOS);
@@ -62,7 +79,6 @@ public class MultaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public String criar(@Valid @ModelAttribute Multa multa, BindingResult result,
                         @RequestParam(value = "arquivos", required = false) MultipartFile[] arquivos,
                         Model model, Authentication authentication, RedirectAttributes redirectAttrs) {

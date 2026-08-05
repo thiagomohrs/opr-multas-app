@@ -20,16 +20,56 @@
     <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
     <div class="alert alert-danger" th:if="${errorMessage}" th:text="${errorMessage}"></div>
 
+    <!-- Dashboard: totais de casos por status de moderação -->
     <div class="card">
         <div class="card-header">
-            <h1>Multas de Trânsito</h1>
-            <!-- Botão apenas para ADMIN -->
-            <a th:href="@{/multas/novo}" class="btn btn-primary" sec:authorize="hasRole('ADMIN')">
+            <h1>📊 Dashboard de Moderação</h1>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid">
+                <div class="stat-card stat-fila">
+                    <span class="stat-value"
+                          th:text="${stats['AGUARDANDO_REVISAO'] + stats['EM_VOTACAO']}">0</span>
+                    <span class="stat-label">Na fila</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${stats['AGUARDANDO_REVISAO']}">0</span>
+                    <span class="stat-label">Aguardando</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${stats['EM_VOTACAO']}">0</span>
+                    <span class="stat-label">Em votação</span>
+                </div>
+                <div class="stat-card stat-ok">
+                    <span class="stat-value" th:text="${stats['APROVADA']}">0</span>
+                    <span class="stat-label">Aprovadas</span>
+                </div>
+                <div class="stat-card stat-bad">
+                    <span class="stat-value" th:text="${stats['REJEITADA']}">0</span>
+                    <span class="stat-label">Rejeitadas</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" th:text="${stats['EXPIRADA']}">0</span>
+                    <span class="stat-label">Expiradas</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1 th:text="${isAdmin ? 'Todas as Multas' : 'Minhas Multas'}">Minhas Multas</h1>
+            <a th:href="@{/multas/novo}" class="btn btn-primary">
                 + Nova Multa
             </a>
         </div>
 
         <div class="card-body">
+            <p class="text-muted" th:unless="${isAdmin}"
+               th:text="'Você está vendo apenas os casos que criou. Seus casos entram na fila de revisão (' + ${stats['AGUARDANDO_REVISAO'] + stats['EM_VOTACAO']} + ' caso(s) no momento).'">
+                Você está vendo apenas os casos que criou.
+            </p>
+
             <!-- Filtro por placa -->
             <form th:action="@{/multas}" method="get" class="search-bar">
                 <input type="text"
@@ -108,8 +148,6 @@
             </div>
         </div>
     </div>
-
-    <div th:replace="~{layout :: hyperlinks(${links})}"></div>
 
 </main>
 </body>

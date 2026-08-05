@@ -1,7 +1,6 @@
 package com.opr.multas.controller;
 
 import com.opr.multas.config.ModeracaoProperties;
-import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.DecisaoVoto;
 import com.opr.multas.model.Multa;
 import com.opr.multas.model.Usuario;
@@ -27,7 +26,6 @@ public class RevisaoController {
     private final VotoRevisaoRepository votoRepository;
     private final UsuarioService usuarioService;
     private final ModeracaoProperties props;
-    private final LinkFacade linkFacade;
     private final FilaRevisaoService filaRevisaoService;
 
     @GetMapping
@@ -44,7 +42,6 @@ public class RevisaoController {
         model.addAttribute("filaVazia", true);
         model.addAttribute("fila", moderacaoService.listarFilaRevisao());
         model.addAttribute("resolvidos", moderacaoService.listarCasosResolvidos());
-        model.addAttribute("links", linkFacade.filaRevisao());
         return "revisao/fila";
     }
 
@@ -78,7 +75,6 @@ public class RevisaoController {
         model.addAttribute("anexos", multa.getAnexos());
         model.addAttribute("decisoes", DecisaoVoto.values());
         model.addAttribute("percentFavor", calcularPercentFavor(multa));
-        model.addAttribute("links", linkFacade.casoRevisao(id));
         if (revisor != null && revisor.getScore() != null) {
             model.addAttribute("pesoVoto", revisor.getScore() / (double) props.getModeracao().getLimiarRevisor());
         } else {

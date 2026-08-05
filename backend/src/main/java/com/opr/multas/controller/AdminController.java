@@ -1,6 +1,5 @@
 package com.opr.multas.controller;
 
-import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.Multa;
 import com.opr.multas.model.VotoRevisao;
 import com.opr.multas.repository.VotoRevisaoRepository;
@@ -20,12 +19,10 @@ public class AdminController {
 
     private final ModeracaoService moderacaoService;
     private final VotoRevisaoRepository votoRepository;
-    private final LinkFacade linkFacade;
 
     @GetMapping("/moderacao")
     public String dashboard(Model model) {
         model.addAttribute("casos", moderacaoService.listarTodosCasos());
-        model.addAttribute("links", linkFacade.moderacao());
         return "admin/moderacao";
     }
 
@@ -34,7 +31,6 @@ public class AdminController {
         Multa multa = moderacaoService.buscarCasoPorId(id);
         model.addAttribute("multa", multa);
         model.addAttribute("votos", votoRepository.findByMultaOrderByVotadoEmAsc(multa));
-        model.addAttribute("links", linkFacade.casoModeracao(id));
         return "admin/caso";
     }
 

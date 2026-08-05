@@ -30,23 +30,5 @@
     </div>
 </nav>
 
-<!-- Hipermídia (HATEOAS): renderiza os links de recurso expostos pelos controllers -->
-<div class="card" th:fragment="hyperlinks(links)" th:if="${links != null}">
-    <div class="card-header">
-        <h2>Hipermídia (HATEOAS)</h2>
-    </div>
-    <div class="card-body">
-        <div class="empty-state" th:if="${#lists.isEmpty(links)}" style="padding:8px">
-            <p>Sem hiperlinks.</p>
-        </div>
-        <ul class="hateoas-links" th:unless="${#lists.isEmpty(links)}">
-            <li th:each="link : ${links}">
-                <span class="rel" th:text="${link.rel}">self</span>
-                → <a th:href="${link.href}" th:text="${link.href}">/link</a>
-            </li>
-        </ul>
-    </div>
-</div>
-
 </body>
 </html>

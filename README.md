@@ -99,7 +99,7 @@ As "multas" são os casos moderados pela comunidade de revisores.
 
 | Rota | Acesso | Função |
 |---|---|---|
-| `/multas` | Autenticado | Listagem/CRUD de multas (edição ADMIN) |
+| `/multas` | Autenticado | Listagem; usuário autenticado cria casos; edição/remoção ADMIN |
 | `/revisao` | Revisor ou ADMIN | Fila de casos pendentes |
 | `/revisao/{id}` | Revisor ou ADMIN | Detalhe do caso + formulário de voto |
 | `/meu-score` | Autenticado | Score e histórico de reputação |

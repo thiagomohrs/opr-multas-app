@@ -425,6 +425,48 @@ body {
 .card-body-divider h3 { font-size: .95rem; font-weight: 600; margin-bottom: .75rem; }
 .card-body-divider p { color: var(--text-primary); line-height: 1.6; }
 
+/* ── Dashboard de status (listagem de multas) ── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: .75rem;
+}
+
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .2rem;
+    padding: 1rem .5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fafafa;
+    text-align: center;
+}
+
+.stat-card .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--primary);
+}
+
+.stat-card .stat-label {
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-secondary);
+}
+
+.stat-card.stat-fila { background: var(--primary-light); border-color: #b7cdf8; }
+.stat-card.stat-fila .stat-value { color: var(--primary-dark); }
+.stat-card.stat-ok { background: var(--success-bg); border-color: #84e1bc; }
+.stat-card.stat-ok .stat-value { color: var(--success); }
+.stat-card.stat-bad { background: var(--danger-bg); border-color: #fca5a5; }
+.stat-card.stat-bad .stat-value { color: var(--danger); }
+
+
 /* ── Progress bar (pesos acumulados) ── */
 .progress-track {
     height: 10px;

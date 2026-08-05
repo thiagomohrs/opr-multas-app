@@ -1,6 +1,5 @@
 package com.opr.multas.controller;
 
-import com.opr.multas.hateoas.LinkFacade;
 import com.opr.multas.model.HistoricoScore;
 import com.opr.multas.model.Usuario;
 import com.opr.multas.model.VotoRevisao;
@@ -24,7 +23,6 @@ public class ScoreController {
     private final HistoricoScoreRepository historicoScoreRepository;
     private final VotoRevisaoRepository votoRepository;
     private final UsuarioService usuarioService;
-    private final LinkFacade linkFacade;
 
     @GetMapping
     public String meuScore(Model model, Authentication authentication) {
@@ -39,7 +37,6 @@ public class ScoreController {
         model.addAttribute("usuario", usuario);
         model.addAttribute("historico", historico);
         model.addAttribute("votos", votos);
-        model.addAttribute("links", linkFacade.meuScore());
         return "usuario/score";
     }
 }
