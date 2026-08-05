@@ -8,6 +8,7 @@ import com.opr.multas.model.StatusModeracaoMulta;
 import com.opr.multas.model.Usuario;
 import com.opr.multas.repository.MultaRepository;
 import com.opr.multas.repository.UsuarioRepository;
+import com.opr.multas.service.FilaRevisaoService;
 import com.opr.multas.service.ModeracaoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -36,10 +38,12 @@ public class DataInitializer {
     private final PasswordEncoder passwordEncoder;
     private final ModeracaoProperties props;
     private final ObjectProvider<ModeracaoService> moderacaoServiceProvider;
+    private final ObjectProvider<FilaRevisaoService> filaRevisaoServiceProvider;
 
     private UsuarioRepository usuarioRepository;
     private MultaRepository multaRepository;
     private ModeracaoService moderacaoService;
+    private FilaRevisaoService filaRevisaoService;
 
     @Value("${opr.seed-demo-data:true}")
     private boolean seedDemoData;
@@ -83,14 +87,33 @@ public class DataInitializer {
         this.usuarioRepository = usuarioRepositoryProvider.getObject();
         this.multaRepository = multaRepositoryProvider.getObject();
         this.moderacaoService = moderacaoServiceProvider.getObject();
+        this.filaRevisaoService = filaRevisaoServiceProvider.getObject();
         Usuario admin = criarUsuarioSeNaoExiste("admin", adminSenha, "Administrador", "admin@opr.com", "ADMIN", 150, true);
         criarUsuarioSeNaoExiste("user", userSenha, "Usuário Teste", "user@opr.com", "USER", 0, false);
         Usuario revisor1 = criarUsuarioSeNaoExiste("revisor", revisorSenha, "Revisor Teste", "revisor@opr.com", "USER", 130, true);
         Usuario revisor2 = criarUsuarioSeNaoExiste("revisor2", revisorSenha, "Revisor Ana", "revisor2@opr.com", "USER", 110, true);
         Usuario revisor3 = criarUsuarioSeNaoExiste("revisor3", revisorSenha, "Revisor Carlos", "revisor3@opr.com", "USER", 105, true);
 
-        criarCasosDemo(admin, List.of(revisor1, revisor2, revisor3));
+        List<Long> casosAbertos = criarCasosDemo(admin, List.of(revisor1, revisor2, revisor3));
+        semearFila(casosAbertos);
         log.info("Inicialização de dados concluída.");
+    }
+
+    /**
+     * Publica os casos demo ainda abertos na fila de revisão (RabbitMQ), garantindo
+     * que existam mensagens para os revisores consumirem mesmo quando o seed da fila
+     * do boot roda antes da criação dos casos demo. Sem Rabbit (dev), é no-op.
+     */
+    private void semearFila(List<Long> casosAbertos) {
+        if (casosAbertos == null || casosAbertos.isEmpty() || !filaRevisaoService.filaAtiva()) {
+            return;
+        }
+        try {
+            filaRevisaoService.publicar(casosAbertos);
+            log.info("{} caso(s) demo publicados na fila de revisão.", casosAbertos.size());
+        } catch (RuntimeException ex) {
+            log.warn("Não foi possível publicar casos demo na fila de revisão: {}", ex.getMessage());
+        }
     }
 
     private Usuario criarUsuarioSeNaoExiste(String login, String senha, String nome, String email,
@@ -119,17 +142,27 @@ public class DataInitializer {
         });
     }
 
-    private void criarCasosDemo(Usuario solicitante, List<Usuario> revisores) {
+    private List<Long> criarCasosDemo(Usuario solicitante, List<Usuario> revisores) {
+        List<Long> casosAbertos = new ArrayList<>();
+
         Multa comAnexo = criarCaso("DEMO-1001", "Excesso de velocidade", solicitante);
         if (comAnexo != null) {
             anexarImagemDemo(comAnexo);
+            casosAbertos.add(comAnexo.getId());
         }
-        criarCaso("DEMO-2002", "Avanço de sinal vermelho", solicitante);
-        criarCaso("DEMO-3003", "Estacionamento proibido", solicitante);
+        Multa semaforo = criarCaso("DEMO-2002", "Avanço de sinal vermelho", solicitante);
+        if (semaforo != null) {
+            casosAbertos.add(semaforo.getId());
+        }
+        Multa estacionamento = criarCaso("DEMO-3003", "Estacionamento proibido", solicitante);
+        if (estacionamento != null) {
+            casosAbertos.add(estacionamento.getId());
+        }
 
         Multa emVotacao = criarCaso("DEMO-4004", "Uso de celular ao volante", solicitante);
         if (emVotacao != null) {
             registrarVoto(emVotacao.getId(), revisores.get(0), DecisaoVoto.APROVAR);
+            casosAbertos.add(emVotacao.getId());
         }
 
         Multa aprovada = criarCaso("DEMO-5005", "Omissão de documentos", solicitante);
@@ -152,6 +185,8 @@ public class DataInitializer {
             expirada.setPrazoRevisao(LocalDateTime.now().minusHours(1));
             multaRepository.save(expirada);
         }
+
+        return casosAbertos;
     }
 
     private Multa criarCaso(String placa, String tipo, Usuario solicitante) {

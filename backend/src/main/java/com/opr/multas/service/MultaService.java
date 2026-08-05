@@ -18,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,14 +63,14 @@ public class MultaService {
 
     /** Contagem de casos por status de moderação (dashboard da listagem). */
     @Cacheable(cacheNames = CacheConfig.CACHE_MULTAS, key = "'dashboard'")
-    public Map<StatusModeracaoMulta, Long> contarPorStatusModeracao() {
-        Map<StatusModeracaoMulta, Long> mapa = new EnumMap<>(StatusModeracaoMulta.class);
+    public Map<String, Long> contarPorStatusModeracao() {
+        Map<String, Long> mapa = new LinkedHashMap<>();
         for (StatusModeracaoMulta status : StatusModeracaoMulta.values()) {
-            mapa.put(status, 0L);
+            mapa.put(status.name(), 0L);
         }
         for (Object[] linha : multaRepository.countAgrupadoPorStatusModeracao()) {
             StatusModeracaoMulta status = (StatusModeracaoMulta) linha[0];
-            mapa.put(status, ((Number) linha[1]).longValue());
+            mapa.put(status.name(), ((Number) linha[1]).longValue());
         }
         return mapa;
     }
