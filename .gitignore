@@ -49,3 +49,7 @@ backend/*.trace.db
 
 .vercel
 .env*
+
+# ── Agente / Skills locais ─────────────────────────
+.agents/
+skills-lock.json
